@@ -1,0 +1,17 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>环球寻光记 - 推荐模块</title>
+</head>
+<body>
+    <h1>推荐地点</h1>
+    {% for place in places %}
+        <div>
+            <img src="{{ place.picture }}" alt="{{ place.name }}">
+            <h2><a href="/details/{{ place.id }}">{{ place.name }}</a></h2>
+        </div>
+    {% endfor %}
+</body>
+</html>
+    

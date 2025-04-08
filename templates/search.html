@@ -1,0 +1,18 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>环球寻光记 - 搜索模块</title>
+</head>
+<body>
+    <h1>搜索模块</h1>
+    <form method="post">
+        <input type="text" name="question" placeholder="请输入问题">
+        <button type="submit">搜索</button>
+    </form>
+    {% if result %}
+        <p>{{ result }}</p>
+    {% endif %}
+</body>
+</html>
+    
