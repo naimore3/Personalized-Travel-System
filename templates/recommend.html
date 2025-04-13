@@ -3,15 +3,18 @@
 <head>
     <meta charset="UTF-8">
     <title>环球寻光记 - 推荐模块</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 <body>
     <h1>推荐地点</h1>
-    {% for place in places %}
-        <div>
-            <img src="{{ place.picture }}" alt="{{ place.name }}">
-            <h2><a href="/details/{{ place.id }}">{{ place.name }}</a></h2>
-        </div>
-    {% endfor %}
+    <div class="recommend-container">
+        {% for place in places %}
+            <div class="place-card">
+                <!-- 假设这里你有图片字段，可根据实际情况修改索引 -->
+                <img src="#" alt="{{ place[1] }}">
+                <h2><a href="{{ url_for('details', place_id=place[0]) }}">{{ place[1] }}</a></h2>
+            </div>
+        {% endfor %}
+    </div>
 </body>
-</html>
-    
+</html>    
