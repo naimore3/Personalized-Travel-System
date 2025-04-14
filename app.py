@@ -6,6 +6,12 @@ app = Flask(__name__)
 db = Database()
 big_model = BigModel()
 
+# 添加 x-content-type-options 头
+@app.after_request
+def add_x_content_type_options(response):
+    response.headers['x-content-type-options'] = 'nosniff'
+    return response
+
 @app.route('/')
 def index():
     return render_template('index.html')
@@ -44,5 +50,3 @@ def details(place_id):
 
 if __name__ == '__main__':
     app.run(debug=True)
-    
-    
