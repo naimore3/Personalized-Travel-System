@@ -4,6 +4,8 @@
     <meta charset="UTF-8">
     <title>环球寻光记 - 地图模块</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <!-- 引入高德地图API，使用新的Key和安全密钥 -->
+    <script src="https://webapi.amap.com/maps?v=2.0&key=a4db26f20581ee86ee953a1e3ac1fbd1&plugin=AMap.Driving&securityJsCode=e754181c0557bd50f114e8944c9100bf"></script>
 </head>
 <body>
     <h1>地图模块</h1>
@@ -12,5 +14,33 @@
     <input type="text" id="end" placeholder="终点">
     <button onclick="navigate()">导航</button>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
+    <script>
+        // 初始化地图
+        var map = new AMap.Map('map', {
+            zoom: 10,
+            center: [116.397428, 39.90923]
+        });
+
+        function navigate() {
+            const start = document.getElementById('start').value;
+            const end = document.getElementById('end').value;
+
+            // 创建一个路径规划实例
+            AMap.plugin('AMap.Driving', function() {
+                var driving = new AMap.Driving({
+                    map: map,
+                    panel: 'panel'
+                });
+                // 根据起点和终点进行路径规划
+                driving.search([{keyword: start}], {keyword: end}, function(status, result) {
+                    if (status === 'complete') {
+                        console.log('路径规划成功');
+                    } else {
+                        console.log('路径规划失败');
+                    }
+                });
+            });
+        }
+    </script>
 </body>
 </html>
