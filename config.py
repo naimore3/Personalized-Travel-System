@@ -2,6 +2,6 @@
 DB_CONFIG = {
     "host": "localhost",
     "user": "root",
-    "password": "123",
+    "password": "123a",
     "database": "places"
 }
