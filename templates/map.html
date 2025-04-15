@@ -14,6 +14,8 @@
     <input type="text" id="start" placeholder="起点">
     <input type="text" id="end" placeholder="终点">
     <button onclick="navigate()">导航</button>
+    <!-- 导航结果显示区域 -->
+    <div id="panel"></div>
     <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     <script>
         // 初始化地图

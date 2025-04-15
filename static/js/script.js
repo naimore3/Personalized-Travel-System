@@ -2,19 +2,28 @@ function navigate() {
     const start = document.getElementById('start').value;
     const end = document.getElementById('end').value;
 
-    // 创建一个路径规划实例
-    AMap.service('AMap.Driving', function() {
-        var driving = new AMap.Driving({
+    if (start && end) {
+        // 初始化地图
+        const map = new AMap.Map('map', {
+            zoom: 10,
+            center: [116.397428, 39.90923]
+        });
+
+        // 创建驾车导航实例
+        const driving = new AMap.Driving({
             map: map,
             panel: 'panel'
         });
-        // 根据起点和终点进行路径规划
-        driving.search([{keyword: start}], {keyword: end}, function(status, result) {
+
+        // 发起导航请求
+        driving.search(start, end, function(status, result) {
             if (status === 'complete') {
-                console.log('路径规划成功');
+                console.log('导航路线获取成功');
             } else {
-                console.log('路径规划失败');
+                console.log('导航路线获取失败：', result);
             }
         });
-    });
+    } else {
+        alert('请输入起点和终点');
+    }
 }
