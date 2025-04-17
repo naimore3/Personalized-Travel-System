@@ -14,6 +14,12 @@
         <a href="{{ url_for('map') }}">地图模块</a>
         <a href="{{ url_for('punch') }}">打卡模块</a>
         <a href="{{ url_for('search') }}">搜索模块</a>
+        {% if username %}
+            <a href="{{ url_for('logout') }}">注销 ({{ username }})</a>
+        {% else %}
+            <a href="{{ url_for('register') }}">注册</a>
+            <a href="{{ url_for('login') }}">登录</a>
+        {% endif %}
     </nav>
 </body>
 </html>
