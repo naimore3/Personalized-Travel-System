@@ -5,8 +5,41 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>环球寻光记 - 地图模块</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
-    <!-- 引入高德地图API，使用新的Key和安全密钥 -->
-    <script src="https://webapi.amap.com/maps?v=2.0&key=a4db26f20581ee86ee953a1e3ac1fbd1&plugin=AMap.Driving&securityJsCode=e754181c0557bd50f114e8944c9100bf"></script>
+    <!-- 设置安全密钥 -->
+    <script type="text/javascript">
+        window._AMapSecurityConfig = {
+            securityJsCode: "e754181c0557bd50f114e8944c9100bf"
+        };
+    </script>
+    <!-- 引入 JS API Loader -->
+    <script src="https://webapi.amap.com/loader.js"></script>
+    <style type="text/css">
+        html,
+        body,
+        #map {
+            width: 100%;
+            height: 100%;
+        }
+        #panel {
+            position: fixed;
+            background-color: white;
+            max-height: 90%;
+            overflow-y: auto;
+            top: 10px;
+            right: 10px;
+            width: 280px;
+        }
+        #panel .amap-call {
+            background-color: #009cf9;
+            border-top-left-radius: 4px;
+            border-top-right-radius: 4px;
+        }
+        #panel .amap-lib-driving {
+            border-bottom-left-radius: 4px;
+            border-bottom-right-radius: 4px;
+            overflow: hidden;
+        }
+    </style>
 </head>
 <body>
     <h1>地图模块</h1>
@@ -14,34 +47,56 @@
     <input type="text" id="start" placeholder="起点">
     <input type="text" id="end" placeholder="终点">
     <button onclick="navigate()">导航</button>
-    <!-- 导航结果显示区域 -->
     <div id="panel"></div>
-    <script src="{{ url_for('static', filename='js/script.js') }}"></script>
     <script>
-        // 初始化地图
-        var map = new AMap.Map('map', {
-            zoom: 10,
-            center: [116.397428, 39.90923]
+        let map;
+        // 使用 JS API Loader 加载地图和驾车导航插件
+        AMapLoader.load({
+            key: "a4db26f20581ee86ee953a1e3ac1fbd1",
+            version: "2.0",
+            plugins: ['AMap.Driving']
+        })
+       .then((AMap) => {
+            // 初始化地图
+            map = new AMap.Map('map', {
+                resizeEnable: true,
+                center: [116.397428, 39.90923],
+                zoom: 13
+            });
+        })
+       .catch((e) => {
+            console.error(e);
         });
 
         function navigate() {
             const start = document.getElementById('start').value;
             const end = document.getElementById('end').value;
 
-            // 创建一个路径规划实例
-            AMap.plugin('AMap.Driving', function() {
+            AMapLoader.load({
+                key: "a4db26f20581ee86ee953a1e3ac1fbd1",
+                version: "2.0",
+                plugins: ['AMap.Driving']
+            })
+           .then((AMap) => {
+                // 创建一个路径规划实例
                 var driving = new AMap.Driving({
                     map: map,
                     panel: 'panel'
                 });
                 // 根据起点和终点进行路径规划
-                driving.search([{keyword: start}], {keyword: end}, function(status, result) {
+                driving.search([
+                    {keyword: start},
+                    {keyword: end}
+                ], function(status, result) {
                     if (status === 'complete') {
-                        console.log('路径规划成功');
+                        console.log('绘制驾车路线完成');
                     } else {
-                        console.log('路径规划失败');
+                        console.log('获取驾车数据失败：' + result);
                     }
                 });
+            })
+           .catch((e) => {
+                console.error(e);
             });
         }
     </script>
