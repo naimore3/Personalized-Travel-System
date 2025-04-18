@@ -18,13 +18,13 @@ class Database:
             # 创建地点表
             create_places_table_query = """
             CREATE TABLE IF NOT EXISTS places (
-                id INT AUTO_INCREMENT PRIMARY KEY,
-                name VARCHAR(255),
-                city VARCHAR(255),
-                address TEXT,
-                rating FLOAT,
-                description TEXT,
-                tags JSON
+                ID INT AUTO_INCREMENT PRIMARY KEY,
+                Place_Name VARCHAR(255),
+                Place_Category VARCHAR(50),
+                City VARCHAR(255),
+                Tags JSON,
+                Description TEXT,
+                Rating FLOAT
             )
             """
             self.cursor.execute(create_places_table_query)
@@ -68,3 +68,19 @@ class Database:
         except mysql.connector.Error as err:
             print(f"检查用户时出错: {err}")
             return False
+
+    def get_place_details(self, place_id):
+        try:
+            query = "SELECT Place_Name, Description, Rating FROM places WHERE ID = %s"
+            self.cursor.execute(query, (place_id,))
+            place = self.cursor.fetchone()
+            if place:
+                return {
+                    'name': place[0],
+                    'description': place[1],
+                    'rating': place[2]
+                }
+            return None
+        except mysql.connector.Error as err:
+            print(f"查询地点详情时出错: {err}")
+            return None
