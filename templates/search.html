@@ -1,20 +1,37 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
-    <!-- 添加 viewport 元标签 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>环球寻光记 - 搜索模块</title>
+    <!-- 引入 Bootstrap CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
+
 <body>
-    <h1>搜索模块</h1>
-    <form method="post">
-        <input type="text" name="question" placeholder="请输入问题">
-        <button type="submit">搜索</button>
-    </form>
-    {% if result %}
-        <p>{{ result }}</p>
-    {% endif %}
+    {% include 'navbar.html' %}
+
+    <div class="container my-5">
+        <h1 class="display-4">搜索模块</h1>
+        <form method="post" class="row g-3">
+            <div class="col-md-10">
+                <input type="text" name="question" class="form-control" placeholder="请输入问题">
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary">搜索</button>
+            </div>
+        </form>
+        {% if result %}
+        <div class="mt-4">
+            <p class="lead">{{ result }}</p>
+        </div>
+        {% endif %}
+    </div>
+
+    <!-- 引入 Bootstrap JS -->
+    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
 </body>
+
 </html>

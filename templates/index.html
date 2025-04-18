@@ -1,25 +1,25 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
-    <!-- 添加 viewport 元标签 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>环球寻光记 - 首页</title>
+    <!-- 引入 Bootstrap CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
+
 <body>
-    <h1>欢迎来到环球寻光记</h1>
-    <nav>
-        <a href="{{ url_for('recommend') }}">推荐模块</a>
-        <a href="{{ url_for('map') }}">地图模块</a>
-        <a href="{{ url_for('punch') }}">打卡模块</a>
-        <a href="{{ url_for('search') }}">搜索模块</a>
-        {% if username %}
-            <a href="{{ url_for('logout') }}">注销 ({{ username }})</a>
-        {% else %}
-            <a href="{{ url_for('register') }}">注册</a>
-            <a href="{{ url_for('login') }}">登录</a>
-        {% endif %}
-    </nav>
+    {% include 'navbar.html' %}
+
+    <!-- 主标题 -->
+    <div class="container my-5 text-center">
+        <h1 class="display-3">欢迎来到环球寻光记</h1>
+    </div>
+
+    <!-- 引入 Bootstrap JS -->
+    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
 </body>
+
 </html>
