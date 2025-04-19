@@ -2,6 +2,7 @@
 from flask import Flask, render_template, request, session, redirect, url_for
 from models.database import Database
 from utils.big_model import BigModel
+from utils.sorting_algorithm import get_top_ten_places  # 导入排序方法
 import re
 
 app = Flask(__name__)
@@ -18,7 +19,9 @@ def add_x_content_type_options(response):
 @app.route('/')
 def index():
     username = session.get('username')
-    return render_template('index.html', username=username)
+    places = db.get_recommended_places()  # 获取所有地点
+    top_ten_places = get_top_ten_places(places)  # 调用排序方法获取前十个地点
+    return render_template('index.html', username=username, top_ten_places=top_ten_places)
 
 @app.route('/recommend')
 def recommend():
