@@ -4,34 +4,320 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>环球寻光记 - 搜索模块</title>
-    <!-- 引入 Bootstrap CSS -->
+    <title>环球寻光记 - 周边搜索</title>
+    <link rel="stylesheet" href="https://cache.amap.com/lbs/static/main1119.css"/>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .main-container {
+            display: flex;
+            height: calc(100vh - 56px);
+            padding: 20px;
+        }
+        .search-container {
+            width: 400px;
+            padding: 20px;
+            background-color: white;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            margin-right: 20px;
+        }
+        .map-container {
+            flex-grow: 1;
+            position: relative;
+            height: 100%;
+            border-radius: 5px;
+            overflow: hidden;
+        }
+        #container {
+            width: 100%;
+            height: 100%;
+        }
+        #panel {
+            position: absolute;
+            background-color: white;
+            max-height: calc(100% - 20px);
+            overflow-y: auto;
+            top: 10px;
+            right: 10px;
+            width: 280px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 10px;
+        }
+        .amap-info-content {
+            padding: 10px;
+        }
+        .search-result-title {
+            font-size: 16px;
+            font-weight: bold;
+            margin-bottom: 10px;
+            padding: 10px;
+            background-color: #f8f9fa;
+            border-radius: 4px;
+        }
+    </style>
+    <script type="text/javascript">
+        window._AMapSecurityConfig = {
+            securityJsCode: "e754181c0557bd50f114e8944c9100bf"
+        };
+    </script>
+    <script type="text/javascript" src="https://webapi.amap.com/maps?v=2.0&key=a4db26f20581ee86ee953a1e3ac1fbd1&plugin=AMap.PlaceSearch"></script>
 </head>
 
 <body>
     {% include 'navbar.html' %}
-
-    <div class="container my-5">
-        <h1 class="display-4">搜索模块</h1>
-        <form method="post" class="row g-3">
-            <div class="col-md-10">
-                <input type="text" name="question" class="form-control" placeholder="请输入问题">
+    
+    <div class="main-container">
+        <!-- 搜索区域 -->
+        <div class="search-container">
+            <div class="form-group">
+                <label for="keyword">搜索地点：</label>
+                <input type="text" id="keyword" class="form-control" placeholder="请输入搜索关键词">
             </div>
-            <div class="col-md-2">
-                <button type="submit" class="btn btn-primary">搜索</button>
+            <div class="form-group mt-2">
+                <label for="city">城市（可选）：</label>
+                <select id="city" class="form-control">
+                    <option value="全国">全国</option>
+                    <option value="北京">北京</option>
+                    <option value="上海">上海</option>
+                    <option value="广州">广州</option>
+                    <option value="深圳">深圳</option>
+                    <option value="杭州">杭州</option>
+                </select>
             </div>
-        </form>
-        {% if result %}
-        <div class="mt-4">
-            <p class="lead">{{ result }}</p>
+            <div class="form-group mt-2">
+                <label for="poiType">周边设施类型：</label>
+                <select id="poiType" class="form-control">
+                    <option value="">请选择设施类型</option>
+                    <option value="餐饮服务">餐厅</option>
+                    <option value="咖啡厅">咖啡厅</option>
+                    <option value="公共厕所">厕所</option>
+                    <option value="停车场">停车场</option>
+                    <option value="商场">商场</option>
+                    <option value="超市">超市</option>
+                    <option value="银行">银行</option>
+                    <option value="ATM">ATM</option>
+                </select>
+            </div>
+            <button id="searchBtn" class="btn btn-primary mt-3 w-100">开始搜索</button>
         </div>
-        {% endif %}
+
+        <!-- 地图区域 -->
+        <div class="map-container">
+            <div id="container"></div>
+            <div id="panel"></div>
+        </div>
     </div>
 
-    <!-- 引入 Bootstrap JS -->
-    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+    <script type="text/javascript">
+        var map = new AMap.Map("container", {
+            resizeEnable: true,
+            zoom: 11,
+            center: [116.397428, 39.90923]
+        });
+        
+        // 用于存储圆形范围的变量
+        var searchCircle = null;
+        // 用于存储所有连线的数组
+        var polylines = [];
+        
+        // 清除地图上的所有内容
+        function clearMapContent() {
+            // 清除圆形范围
+            if (searchCircle) {
+                searchCircle.setMap(null);
+            }
+            // 清除所有连线
+            polylines.forEach(line => line.setMap(null));
+            polylines = [];
+            // 清除地图上的所有覆盖物（标记点、信息窗体等）
+            map.clearMap();
+            // 清除搜索结果面板
+            document.getElementById('panel').innerHTML = '';
+        }
+
+        // 创建连线
+        function createConnections(pois) {
+            console.log('Sending POIs to backend:', pois);  // 调试日志
+            
+            // 发送搜索结果到后端
+            fetch('/update_graph', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    pois: pois.map(poi => ({
+                        id: poi.id,
+                        location: {
+                            lng: poi.location.lng,
+                            lat: poi.location.lat
+                        },
+                        name: poi.name
+                    }))
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Received connections from backend:', data);  // 调试日志
+                
+                // 清除之前的连线
+                polylines.forEach(line => line.setMap(null));
+                polylines = [];
+                
+                // 绘制所有连线
+                if (data.connections && Array.isArray(data.connections)) {
+                    data.connections.forEach(connection => {
+                        console.log('Drawing connection:', connection);  // 调试日志
+                        
+                        var line = new AMap.Polyline({
+                            path: [
+                                [connection.path[0].lng, connection.path[0].lat],
+                                [connection.path[1].lng, connection.path[1].lat]
+                            ],
+                            strokeColor: "#3366FF",
+                            strokeOpacity: 0.8,
+                            strokeWeight: 2,
+                            strokeStyle: "solid",
+                            lineJoin: 'round',
+                            lineCap: 'round',
+                            zIndex: 50
+                        });
+                        
+                        line.setMap(map);
+                        polylines.push(line);
+                    });
+                }
+            })
+            .catch(error => {
+                console.error('Error in createConnections:', error);
+            });
+        }
+        
+        // 初始化地点搜索插件
+        var placeSearch = new AMap.PlaceSearch({
+            pageSize: 5,
+            pageIndex: 1,
+            city: "全国",
+            citylimit: false,
+            map: map,
+            panel: "panel",
+            autoFitView: false
+        });
+
+        // 周边搜索方法
+        function searchNearby(center, type) {
+            // 创建新的搜索实例用于周边搜索
+            var nearbySearch = new AMap.PlaceSearch({
+                type: type,
+                pageSize: 10,
+                pageIndex: 1,
+                extensions: 'all',
+                map: map,
+                panel: "panel",
+                autoFitView: false
+            });
+            
+            // 在结果面板中添加标题
+            document.getElementById('panel').innerHTML = 
+                '<div class="search-result-title">1公里范围内的' + 
+                document.getElementById('poiType').options[document.getElementById('poiType').selectedIndex].text + 
+                '</div>';
+            
+            // 创建新的圆形范围
+            searchCircle = new AMap.Circle({
+                center: center,
+                radius: 1000,  // 1公里半径
+                strokeColor: "#3366FF",
+                strokeOpacity: 0.3,
+                strokeWeight: 3,
+                fillColor: "#FFA500",
+                fillOpacity: 0.1
+            });
+            
+            // 将圆形添加到地图上
+            searchCircle.setMap(map);
+            
+            // 设置地图中心和缩放级别以适应1公里圆形范围
+            map.setZoomAndCenter(15, center);
+            
+            // 设置周边搜索参数
+            nearbySearch.searchNearBy("", center, 1000, function(status, result) {
+                if (status === 'complete' && result.info === 'OK') {
+                    console.log('周边搜索成功，结果：', result);  // 调试日志
+                    if (result.poiList && result.poiList.pois && result.poiList.pois.length > 0) {
+                        // 创建连接所有搜索点的线段
+                        createConnections(result.poiList.pois);
+                    } else {
+                        console.log('未找到POI点');  // 调试日志
+                    }
+                } else {
+                    console.error('搜索失败:', status, result);  // 调试日志
+                    document.getElementById('panel').innerHTML += 
+                        '<div class="p-3">未找到相关设施</div>';
+                }
+            });
+        }
+            
+        // 绑定搜索按钮事件
+        document.getElementById('searchBtn').addEventListener('click', function() {
+            var keyword = document.getElementById('keyword').value.trim();
+            var city = document.getElementById('city').value;
+            var poiType = document.getElementById('poiType').value;
+            
+            if (!keyword) {
+                alert('请输入搜索关键词');
+                return;
+            }
+            
+            // 清除之前的搜索结果和地图内容
+            clearMapContent();
+            
+            console.log(`搜索关键词: ${keyword}, 城市: ${city}, 设施类型: ${poiType}`);
+            
+            // 更新搜索参数
+            placeSearch.setCity(city);
+            
+            // 执行地点搜索
+            placeSearch.search(keyword, function(status, result) {
+                if (status === 'complete' && result.info === 'OK') {
+                    if (result.poiList && result.poiList.pois && result.poiList.pois.length > 0) {
+                        var firstPOI = result.poiList.pois[0];
+                        var center = [firstPOI.location.lng, firstPOI.location.lat];
+                        
+                        // 如果选择了设施类型，进行周边搜索
+                        if (poiType) {
+                            searchNearby(center, poiType);
+                        } else {
+                            // 如果只搜索地点，创建圆形范围并设置适当的缩放级别
+                            searchCircle = new AMap.Circle({
+                                center: center,
+                                radius: 1000,
+                                strokeColor: "#3366FF",
+                                strokeOpacity: 0.3,
+                                strokeWeight: 3,
+                                fillColor: "#FFA500",
+                                fillOpacity: 0.1
+                            });
+                            searchCircle.setMap(map);
+                            map.setZoomAndCenter(15, center);
+                        }
+                    } else {
+                        document.getElementById('panel').innerHTML = 
+                            '<div class="p-3">未找到相关地点</div>';
+                    }
+                } else {
+                    document.getElementById('panel').innerHTML = 
+                        '<div class="p-3">搜索失败，请重试</div>';
+                }
+            });
+        });
+    </script>
 </body>
 
 </html>

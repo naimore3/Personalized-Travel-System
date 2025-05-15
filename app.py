@@ -1,8 +1,9 @@
 # app.py
-from flask import Flask, render_template, request, session, redirect, url_for
+from flask import Flask, render_template, request, session, redirect, url_for, jsonify
 from models.database import Database
 from utils.big_model import BigModel
 from utils.sorting_algorithm import get_top_ten_places  # 导入排序方法
+from utils.search_graph import search_graph
 import re
 
 app = Flask(__name__)
@@ -85,6 +86,30 @@ def login():
 def logout():
     session.pop('username', None)
     return redirect(url_for('index'))
+
+@app.route('/update_graph', methods=['POST'])
+def update_graph():
+    """处理搜索结果点的连接关系"""
+    try:
+        data = request.json
+        if not data or 'pois' not in data:
+            return jsonify({'error': 'No POI data provided'}), 400
+        
+        # 打印接收到的数据，用于调试
+        print("Received POI data:", data['pois'])
+        
+        # 使用图处理类处理连接关系
+        connections = search_graph.add_points(data['pois'])
+        
+        # 打印生成的连接数据，用于调试
+        print("Generated connections:", connections)
+        
+        return jsonify({
+            'connections': connections
+        })
+    except Exception as e:
+        print("Error in update_graph:", str(e))  # 打印错误信息
+        return jsonify({'error': str(e)}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
