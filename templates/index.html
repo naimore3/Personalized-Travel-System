@@ -25,14 +25,14 @@
             {% for place in top_ten_places %}
             <div class="col">
                 <div class="card shadow-sm">
-                    <!-- 显示地点图片，这里假设图片路径在第3个位置 -->
-                    <img src="{{ place[2] if place|length > 2 else '#' }}" class="bd-placeholder-img card-img-top" alt="{{ place[1] }}" width="100%" height="225">
+                    <!-- 使用默认图片，因为目前没有图片字段 -->
+                    <img src="{{ url_for('static', filename='images/default.jpg') }}" class="bd-placeholder-img card-img-top" alt="{{ place['Place_Name'] }}" width="100%" height="225">
                     <div class="card-body">
-                        <h3 class="card-title"><a href="{{ url_for('details', place_id=place[0]) }}">{{ place[1] }}</a></h3>
-                        <p class="card-text">评分: {{ place[6] }}</p>
+                        <h3 class="card-title"><a href="{{ url_for('details', place_id=place['ID']) }}">{{ place['Place_Name'] }}</a></h3>
+                        <p class="card-text">评分: {{ place['Rating'] }}</p>
                         <div class="d-flex justify-content-between align-items-center">
                             <div class="btn-group">
-                                <a href="{{ url_for('details', place_id=place[0]) }}" class="btn btn-sm btn-outline-secondary">查看详情</a>
+                                <a href="{{ url_for('details', place_id=place['ID']) }}" class="btn btn-sm btn-outline-secondary">查看详情</a>
                             </div>
                         </div>
                     </div>

@@ -1,6 +1,6 @@
 # app.py
-from flask import Flask, render_template, request, session, redirect, url_for, jsonify
-from models.database import Database
+from flask import Flask, render_template, request, session, redirect, url_for, jsonify, flash
+from utils.excel_handler import ExcelHandler
 from utils.big_model import BigModel
 from utils.sorting_algorithm import get_top_ten_places  # 导入排序方法
 from utils.search_graph import search_graph
@@ -8,7 +8,7 @@ import re
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # 用于会话管理
-db = Database()
+excel_handler = ExcelHandler()
 big_model = BigModel()
 
 # 添加 x-content-type-options 头
@@ -20,13 +20,13 @@ def add_x_content_type_options(response):
 @app.route('/')
 def index():
     username = session.get('username')
-    places = db.get_recommended_places()  # 获取所有地点
+    places = excel_handler.get_recommended_places()  # 获取所有地点
     top_ten_places = get_top_ten_places(places)  # 调用排序方法获取前十个地点
     return render_template('index.html', username=username, top_ten_places=top_ten_places)
 
 @app.route('/recommend')
 def recommend():
-    places = db.get_recommended_places()
+    places = excel_handler.get_recommended_places()
     return render_template('recommend.html', places=places)
 
 @app.route('/map')
@@ -40,7 +40,7 @@ def punch():
         picture = request.files.get('picture')
         title = request.form.get('title')
         content = request.form.get('content')
-        db.add_punch_record(place, picture, title, content)
+        # TODO: 实现打卡记录功能
     return render_template('punch.html')
 
 @app.route('/search', methods=['GET', 'POST'])
@@ -53,7 +53,7 @@ def search():
 
 @app.route('/details/<int:place_id>')
 def details(place_id):
-    place = db.get_place_details(place_id)
+    place = excel_handler.get_place_details(place_id)
     return render_template('details.html', place=place)
 
 @app.route('/register', methods=['GET', 'POST'])
@@ -61,13 +61,23 @@ def register():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        if re.match(r'^[a-zA-Z0-9]+$', username) and re.match(r'^[a-zA-Z0-9]+$', password):
-            if db.register_user(username, password):
-                return '注册成功'
-            else:
-                return '注册失败'
+        
+        # 检查用户名是否已存在
+        if excel_handler.check_user_exists(username):
+            flash('用户名已存在，请选择其他用户名', 'error')
+            return redirect(url_for('register'))
+        
+        # 创建新用户
+        if excel_handler.create_user(username, password):
+            # 注册成功后自动登录
+            session['logged_in'] = True
+            session['username'] = username
+            flash('注册成功并已自动登录！', 'success')
+            return redirect(url_for('index'))
         else:
-            return '用户名和密码只能由英文和数字组成'
+            flash('注册失败，请重试', 'error')
+            return redirect(url_for('register'))
+            
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -75,7 +85,7 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
-        if db.check_user(username, password):
+        if excel_handler.check_user(username, password):
             session['username'] = username
             return redirect(url_for('index'))
         else:
@@ -110,6 +120,79 @@ def update_graph():
     except Exception as e:
         print("Error in update_graph:", str(e))  # 打印错误信息
         return jsonify({'error': str(e)}), 500
+
+@app.route('/profile')
+def profile():
+    if 'username' not in session:
+        return redirect(url_for('login'))
+    
+    user = excel_handler.get_user_by_username(session['username'])
+    if not user:
+        return redirect(url_for('logout'))
+
+    user_tags = excel_handler.get_user_tags(user['id'])
+    user_diaries = excel_handler.get_user_diaries(user['id'])
+    browse_history = excel_handler.get_browse_history(user['id'])
+
+    return render_template('profile.html',
+                         username=user['username'],
+                         user_id=user['id'],
+                         user_tags=user_tags,
+                         user_diaries=user_diaries,
+                         browse_history=browse_history)
+
+@app.route('/add_tag', methods=['POST'])
+def add_tag():
+    if 'username' not in session:
+        return jsonify({'success': False, 'message': '请先登录'}), 401
+    
+    tag = request.form.get('tag')
+    if not tag:
+        return jsonify({'success': False, 'message': '标签不能为空'}), 400
+
+    user = excel_handler.get_user_by_username(session['username'])
+    if not user:
+        return jsonify({'success': False, 'message': '用户不存在'}), 404
+
+    if excel_handler.add_user_tag(user['id'], tag):
+        return jsonify({'success': True, 'message': '添加标签成功'})
+    return jsonify({'success': False, 'message': '添加标签失败'}), 500
+
+@app.route('/add_diary', methods=['POST'])
+def add_diary():
+    if 'username' not in session:
+        return jsonify({'success': False, 'message': '请先登录'}), 401
+    
+    title = request.form.get('title')
+    content = request.form.get('content')
+    
+    if not title or not content:
+        return jsonify({'success': False, 'message': '标题和内容不能为空'}), 400
+
+    user = excel_handler.get_user_by_username(session['username'])
+    if not user:
+        return jsonify({'success': False, 'message': '用户不存在'}), 404
+
+    if excel_handler.add_user_diary(user['id'], title, content):
+        return jsonify({'success': True, 'message': '添加日记成功'})
+    return jsonify({'success': False, 'message': '添加日记失败'}), 500
+
+@app.route('/add_history', methods=['POST'])
+def add_history():
+    if 'username' not in session:
+        return jsonify({'success': False, 'message': '请先登录'}), 401
+    
+    place_name = request.form.get('place_name')
+    if not place_name:
+        return jsonify({'success': False, 'message': '地点名称不能为空'}), 400
+
+    user = excel_handler.get_user_by_username(session['username'])
+    if not user:
+        return jsonify({'success': False, 'message': '用户不存在'}), 404
+
+    if excel_handler.add_browse_history(user['id'], place_name):
+        return jsonify({'success': True, 'message': '添加浏览记录成功'})
+    return jsonify({'success': False, 'message': '添加浏览记录失败'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)

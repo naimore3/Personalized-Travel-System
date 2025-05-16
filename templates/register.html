@@ -8,26 +8,47 @@
     <!-- 引入 Bootstrap CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .auth-container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+    </style>
 </head>
 
 <body>
     {% include 'navbar.html' %}
 
     <div class="container my-5">
-        <h1 class="display-4">注册</h1>
-        <form method="post" class="row g-3">
-            <div class="col-md-12">
-                <label for="username" class="form-label">用户名</label>
-                <input type="text" class="form-control" id="username" name="username" placeholder="用户名">
+        <div class="auth-container">
+            <h1 class="display-4 mb-4">注册</h1>
+            {% with messages = get_flashed_messages(with_categories=true) %}
+                {% if messages %}
+                    {% for category, message in messages %}
+                        <div class="alert alert-{{ category }}" role="alert">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            <form method="post" class="row g-3">
+                <div class="col-12">
+                    <label for="username" class="form-label">用户名</label>
+                    <input type="text" class="form-control" id="username" name="username" placeholder="请输入用户名" required>
+                </div>
+                <div class="col-12">
+                    <label for="password" class="form-label">密码</label>
+                    <input type="password" class="form-control" id="password" name="password" placeholder="请输入密码" required>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary w-100">注册</button>
+                </div>
+            </form>
+            <div class="text-center mt-3">
+                <p>已有账号？<a href="{{ url_for('login') }}">登录</a></p>
             </div>
-            <div class="col-md-12">
-                <label for="password" class="form-label">密码</label>
-                <input type="password" class="form-control" id="password" name="password" placeholder="密码">
-            </div>
-            <div class="col-md-12">
-                <button type="submit" class="btn btn-primary">注册</button>
-            </div>
-        </form>
+        </div>
     </div>
 
     <!-- 引入 Bootstrap JS -->

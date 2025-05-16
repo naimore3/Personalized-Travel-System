@@ -8,32 +8,56 @@
     <!-- 引入 Bootstrap CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .auth-container {
+            max-width: 400px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .register-link {
+            text-align: center;
+            margin-top: 20px;
+        }
+        .register-link a {
+            color: #0d6efd;
+            text-decoration: none;
+        }
+        .register-link a:hover {
+            text-decoration: underline;
+        }
+    </style>
 </head>
 
 <body>
     {% include 'navbar.html' %}
 
     <div class="container my-5">
-        <div class="row justify-content-center">
-            <div class="col-md-6">
-                <div class="card">
-                    <div class="card-header">
-                        <h2 class="card-title">登录</h2>
-                    </div>
-                    <div class="card-body">
-                        <form method="post">
-                            <div class="mb-3">
-                                <label for="username" class="form-label">用户名</label>
-                                <input type="text" class="form-control" id="username" name="username" placeholder="用户名">
-                            </div>
-                            <div class="mb-3">
-                                <label for="password" class="form-label">密码</label>
-                                <input type="password" class="form-control" id="password" name="password" placeholder="密码">
-                            </div>
-                            <button type="submit" class="btn btn-primary">登录</button>
-                        </form>
-                    </div>
+        <div class="auth-container">
+            <h1 class="display-4 mb-4">登录</h1>
+            {% with messages = get_flashed_messages() %}
+                {% if messages %}
+                    {% for message in messages %}
+                        <div class="alert alert-{{ 'success' if 'success' in message else 'danger' }}" role="alert">
+                            {{ message }}
+                        </div>
+                    {% endfor %}
+                {% endif %}
+            {% endwith %}
+            <form method="post" class="row g-3">
+                <div class="col-12">
+                    <label for="username" class="form-label">用户名</label>
+                    <input type="text" class="form-control" id="username" name="username" placeholder="请输入用户名" required>
                 </div>
+                <div class="col-12">
+                    <label for="password" class="form-label">密码</label>
+                    <input type="password" class="form-control" id="password" name="password" placeholder="请输入密码" required>
+                </div>
+                <div class="col-12">
+                    <button type="submit" class="btn btn-primary w-100">登录</button>
+                </div>
+            </form>
+            <div class="register-link">
+                <p>没有账号？<a href="{{ url_for('register') }}">注册</a></p>
             </div>
         </div>
     </div>

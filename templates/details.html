@@ -5,36 +5,59 @@
     <meta charset="UTF-8">
     <!-- 添加 viewport 元标签 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>环球寻光记 - 地点详情</title>
+    <title>{{ place.name }} - 地点详情</title>
     <!-- 引入 Bootstrap CSS -->
-    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
 
 <body>
     {% include 'navbar.html' %}
 
-    <div class="container my-5">
-        <div class="card">
-            <div class="card-body">
-                <h1 class="card-title">{{ place.name }}</h1>
-                <img src="{{ place.picture }}" alt="{{ place.name }}" class="img-fluid mb-3">
-                <p class="card-text">{{ place.description }}</p>
-                <p class="card-text">评分: {{ place.rating }}</p>
+    <main class="container mt-5">
+        <div class="row">
+            <div class="col-md-8 offset-md-2">
+                <div class="card">
+                    <img src="{{ url_for('static', filename='images/default.jpg') }}" class="card-img-top" alt="{{ place.name }}">
+                    <div class="card-body">
+                        <h1 class="card-title">{{ place.name }}</h1>
+                        <div class="mb-3">
+                            <span class="badge bg-primary">{{ place.category }}</span>
+                            <span class="badge bg-info">{{ place.country }}</span>
+                            <span class="badge bg-secondary">{{ place.city }}</span>
+                            {% if place.tags %}
+                                {% for tag in place.tags.split(',') %}
+                                    <span class="badge bg-success">{{ tag }}</span>
+                                {% endfor %}
+                            {% endif %}
+                        </div>
+                        <p class="card-text">{{ place.description }}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div>
+                                <p class="mb-1">
+                                    <strong>评分：</strong>
+                                    <span class="text-warning">
+                                        {% for i in range(place.rating|int) %}
+                                            ★
+                                        {% endfor %}
+                                    </span>
+                                    {{ place.rating }}
+                                </p>
+                                <p class="mb-1"><strong>浏览次数：</strong> {{ place.view_count }}</p>
+                            </div>
+                            <div>
+                                <a href="{{ url_for('recommend') }}" class="btn btn-outline-secondary">返回列表</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
             </div>
         </div>
+    </main>
 
-        <h2 class="mt-5">用户评论</h2>
-        <!-- 显示评论 -->
-        <!-- 这里可以添加循环来显示评论列表 -->
-        <!-- 示例评论 -->
-        <div class="card my-3">
-            <div class="card-body">
-                <h5 class="card-title">用户昵称</h5>
-                <p class="card-text">这是一条示例评论。</p>
-            </div>
-        </div>
-    </div>
+    <footer class="text-center mt-5">
+        <p>环球寻光记 &copy; 版权所有</p>
+    </footer>
 
     <!-- 引入 Bootstrap JS -->
     <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
