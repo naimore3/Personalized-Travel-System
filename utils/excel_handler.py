@@ -55,7 +55,14 @@ class ExcelHandler:
         """检查用户名是否已存在"""
         try:
             df = pd.read_excel(self.users_file)
-            return any(df['username'] == username)
+            # 确保数据类型一致
+            df['username'] = df['username'].astype(str)
+            username = str(username)
+            print(f"检查用户名是否存在: {username}")  # 调试信息
+            print(f"数据库中的用户名: {df['username'].tolist()}")  # 调试信息
+            exists = any(df['username'] == username)
+            print(f"用户名是否存在: {exists}")  # 调试信息
+            return exists
         except Exception as e:
             print(f"检查用户名时出错: {e}")
             return False
@@ -85,10 +92,23 @@ class ExcelHandler:
         """检查用户登录信息"""
         try:
             df = pd.read_excel(self.users_file)
+            # 确保数据类型一致
+            df['username'] = df['username'].astype(str)
+            df['password'] = df['password'].astype(str)
+            username = str(username)
+            password = str(password)
+            
+            print(f"正在检查用户登录: {username}")  # 调试信息
+            print(f"数据库中的用户: {df['username'].tolist()}")  # 调试信息
+            
+            # 查找匹配的用户
             user = df[(df['username'] == username) & (df['password'] == password)]
+            print(f"找到匹配的用户: {not user.empty}")  # 调试信息
+            
             return not user.empty
         except Exception as e:
             print(f"检查用户时出错: {e}")
+            print(f"错误类型: {type(e)}")  # 打印错误类型
             return False
 
     def get_user_by_username(self, username):

@@ -61,23 +61,31 @@ def register():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
+        confirm_password = request.form.get('confirm_password')
         
-        # 检查用户名是否已存在
+        if password != confirm_password:
+            return jsonify({
+                'success': False,
+                'message': '两次输入的密码不一致！'
+            })
+        
         if excel_handler.check_user_exists(username):
-            flash('用户名已存在，请选择其他用户名', 'error')
-            return redirect(url_for('register'))
+            return jsonify({
+                'success': False,
+                'message': '该用户名已被注册！'
+            })
         
-        # 创建新用户
         if excel_handler.create_user(username, password):
-            # 注册成功后自动登录
-            session['logged_in'] = True
-            session['username'] = username
-            flash('注册成功并已自动登录！', 'success')
-            return redirect(url_for('index'))
+            return jsonify({
+                'success': True,
+                'message': '注册成功！'
+            })
         else:
-            flash('注册失败，请重试', 'error')
-            return redirect(url_for('register'))
-            
+            return jsonify({
+                'success': False,
+                'message': '注册失败，请稍后重试！'
+            })
+    
     return render_template('register.html')
 
 @app.route('/login', methods=['GET', 'POST'])
@@ -85,11 +93,27 @@ def login():
     if request.method == 'POST':
         username = request.form.get('username')
         password = request.form.get('password')
+        
+        # 先检查用户是否存在
+        if not excel_handler.check_user_exists(username):
+            return jsonify({
+                'success': False,
+                'message': '该账号不存在！'
+            })
+        
+        # 再检查密码是否正确
         if excel_handler.check_user(username, password):
             session['username'] = username
-            return redirect(url_for('index'))
+            return jsonify({
+                'success': True,
+                'message': '登录成功！'
+            })
         else:
-            return '请注册账号'
+            return jsonify({
+                'success': False,
+                'message': '密码错误！'
+            })
+    
     return render_template('login.html')
 
 @app.route('/logout')

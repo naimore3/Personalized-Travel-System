@@ -43,7 +43,7 @@
                     {% endfor %}
                 {% endif %}
             {% endwith %}
-            <form method="post" class="row g-3">
+            <form method="post" class="row g-3" id="loginForm">
                 <div class="col-12">
                     <label for="username" class="form-label">用户名</label>
                     <input type="text" class="form-control" id="username" name="username" placeholder="请输入用户名" required>
@@ -62,8 +62,56 @@
         </div>
     </div>
 
+    <!-- 登录结果弹窗 -->
+    <div class="modal fade" id="loginModal" tabindex="-1" aria-labelledby="loginModalLabel" aria-hidden="true">
+        <div class="modal-dialog">
+            <div class="modal-content">
+                <div class="modal-header">
+                    <h5 class="modal-title" id="loginModalLabel">登录结果</h5>
+                    <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
+                </div>
+                <div class="modal-body" id="loginModalBody">
+                </div>
+                <div class="modal-footer">
+                    <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
+                </div>
+            </div>
+        </div>
+    </div>
+
     <!-- 引入 Bootstrap JS -->
     <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+    <script>
+        document.getElementById('loginForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            
+            fetch('{{ url_for("login") }}', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                const modal = new bootstrap.Modal(document.getElementById('loginModal'));
+                const modalBody = document.getElementById('loginModalBody');
+                
+                if (data.success) {
+                    modalBody.innerHTML = '<div class="alert alert-success">登录成功！正在跳转...</div>';
+                    setTimeout(() => {
+                        window.location.href = '{{ url_for("index") }}';
+                    }, 1500);
+                } else {
+                    modalBody.innerHTML = `<div class="alert alert-danger">${data.message}</div>`;
+                }
+                
+                modal.show();
+            })
+            .catch(error => {
+                console.error('Error:', error);
+            });
+        });
+    </script>
 </body>
 
 </html>
