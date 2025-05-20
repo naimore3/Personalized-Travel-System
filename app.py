@@ -147,17 +147,23 @@ def update_graph():
 
 @app.route('/profile')
 def profile():
+    # 检查用户是否已登录
     if 'username' not in session:
         return redirect(url_for('login'))
     
+    # 获取用户信息
     user = excel_handler.get_user_by_username(session['username'])
     if not user:
-        return redirect(url_for('logout'))
+        # 如果用户不存在，清除会话并重定向到登录页面
+        session.pop('username', None)
+        return redirect(url_for('login'))
 
+    # 获取用户相关数据
     user_tags = excel_handler.get_user_tags(user['id'])
     user_diaries = excel_handler.get_user_diaries(user['id'])
     browse_history = excel_handler.get_browse_history(user['id'])
 
+    # 渲染个人信息页面
     return render_template('profile.html',
                          username=user['username'],
                          user_id=user['id'],

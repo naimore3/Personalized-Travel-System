@@ -115,15 +115,25 @@ class ExcelHandler:
         """通过用户名获取用户信息"""
         try:
             df = pd.read_excel(self.users_file)
+            print(f"正在获取用户信息: {username}")  # 调试信息
+            print(f"数据库中的用户: {df['username'].tolist()}")  # 调试信息
+            
+            # 确保数据类型一致
+            df['username'] = df['username'].astype(str)
+            username = str(username)
+            
             user = df[df['username'] == username]
             if not user.empty:
                 user_dict = user.iloc[0].to_dict()
                 # 将tags从字符串转换为列表
                 user_dict['tags'] = json.loads(user_dict['tags'])
+                print(f"找到用户信息: {user_dict}")  # 调试信息
                 return user_dict
+            print(f"未找到用户: {username}")  # 调试信息
             return None
         except Exception as e:
             print(f"获取用户信息时出错: {e}")
+            print(f"错误类型: {type(e)}")  # 打印错误类型
             return None
 
     def get_user_tags(self, user_id):
