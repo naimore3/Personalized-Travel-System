@@ -13,8 +13,14 @@
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('recommend') }}">推荐</a>
                 </li>
-                <li class="nav-item">
-                    <a class="nav-link" href="{{ url_for('map') }}">地图</a>
+                <li class="nav-item dropdown">
+                    <a class="nav-link dropdown-toggle" href="#" id="mapDropdown" role="button" data-bs-toggle="dropdown">
+                        地图
+                    </a>
+                    <ul class="dropdown-menu">
+                        <li><a class="dropdown-item" href="{{ url_for('domestic_map') }}">国内畅游</a></li>
+                        <li><a class="dropdown-item" href="{{ url_for('global_map') }}">环球寻光</a></li>
+                    </ul>
                 </li>
                 <li class="nav-item">
                     <a class="nav-link" href="{{ url_for('punch') }}">打卡</a>

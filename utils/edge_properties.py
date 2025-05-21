@@ -124,4 +124,36 @@ class EdgePropertiesGenerator:
             'modes': [TRANSPORT_MODE_CHINESE[mode.value] for mode in available_modes],
             'times': travel_times,
             'weights': weights
-        } 
+        }
+
+class EdgeProperties:
+    def __init__(self):
+        self.property_types = {
+            'distance': self._generate_distance,
+            'time': self._generate_time,
+            'difficulty': self._generate_difficulty,
+            'scenic_score': self._generate_scenic_score
+        }
+
+    def generate_properties(self):
+        """生成边的属性"""
+        properties = {}
+        for prop_name, generator in self.property_types.items():
+            properties[prop_name] = generator()
+        return properties
+
+    def _generate_distance(self):
+        """生成距离属性（米）"""
+        return random.randint(50, 500)
+
+    def _generate_time(self):
+        """生成时间属性（分钟）"""
+        return random.randint(1, 30)
+
+    def _generate_difficulty(self):
+        """生成难度属性（1-5）"""
+        return random.randint(1, 5)
+
+    def _generate_scenic_score(self):
+        """生成风景评分（1-10）"""
+        return round(random.uniform(1, 10), 1) 

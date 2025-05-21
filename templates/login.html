@@ -39,23 +39,23 @@
                     {% for message in messages %}
                         <div class="alert alert-{{ 'success' if 'success' in message else 'danger' }}" role="alert">
                             {{ message }}
-                        </div>
+                    </div>
                     {% endfor %}
                 {% endif %}
             {% endwith %}
             <form method="post" class="row g-3" id="loginForm">
                 <div class="col-12">
-                    <label for="username" class="form-label">用户名</label>
+                                <label for="username" class="form-label">用户名</label>
                     <input type="text" class="form-control" id="username" name="username" placeholder="请输入用户名" required>
-                </div>
+                            </div>
                 <div class="col-12">
-                    <label for="password" class="form-label">密码</label>
+                                <label for="password" class="form-label">密码</label>
                     <input type="password" class="form-control" id="password" name="password" placeholder="请输入密码" required>
                 </div>
                 <div class="col-12">
                     <button type="submit" class="btn btn-primary w-100">登录</button>
-                </div>
-            </form>
+                            </div>
+                        </form>
             <div class="register-link">
                 <p>没有账号？<a href="{{ url_for('register') }}">注册</a></p>
             </div>
@@ -71,7 +71,7 @@
                     <button type="button" class="btn-close" data-bs-dismiss="modal" aria-label="Close"></button>
                 </div>
                 <div class="modal-body" id="loginModalBody">
-                </div>
+                    </div>
                 <div class="modal-footer">
                     <button type="button" class="btn btn-secondary" data-bs-dismiss="modal">关闭</button>
                 </div>

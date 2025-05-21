@@ -186,7 +186,8 @@
                             lng: poi.location.lng,
                             lat: poi.location.lat
                         },
-                        name: poi.name
+                        name: poi.name,
+                        address: poi.address || ''
                     }))
                 })
             })
@@ -204,23 +205,26 @@
                 polylines = [];
                 
                 // 绘制所有连线
-                if (data.connections && Array.isArray(data.connections)) {
+                if (data.connections && data.connections.edges) {
                     console.log('All connections:', data.connections); // 添加调试日志
-                    data.connections.forEach(connection => {
-                        console.log('Processing connection:', connection);
-                        console.log('Transport modes:', connection.transport_modes);
-                        console.log('Distance:', connection.distance);
-                        console.log('Congestion:', connection.congestion);
+                    data.connections.edges.forEach(edge => {
+                        console.log('Processing edge:', edge);
                         
+                        // 检查点的位置信息是否存在
+                        if (!edge.source || !edge.source.location || !edge.target || !edge.target.location) {
+                            console.error('Invalid edge data:', edge);
+                            return;
+                        }
+
                         // 获取该连接支持的交通方式的颜色
-                        const color = getTransportColor(connection.transport_modes);
-                        console.log('Selected color for modes', connection.transport_modes, ':', color);
+                        const color = getTransportColor(edge.properties.modes);
+                        console.log('Selected color for modes', edge.properties.modes, ':', color);
                         
                         // 创建连线
                         var line = new AMap.Polyline({
                             path: [
-                                [connection.path[0].lng, connection.path[0].lat],
-                                [connection.path[1].lng, connection.path[1].lat]
+                                [edge.source.location.lng, edge.source.location.lat],
+                                [edge.target.location.lng, edge.target.location.lat]
                             ],
                             strokeColor: color,
                             strokeOpacity: 0.8,
@@ -231,12 +235,12 @@
                             zIndex: 50,
                             // 添加鼠标悬停提示信息
                             extData: {
-                                modes: connection.transport_modes,
-                                weights: connection.weights,
-                                from: connection.from_name,
-                                to: connection.to_name,
-                                distance: connection.distance,
-                                congestion: connection.congestion
+                                modes: edge.properties.modes,
+                                weights: edge.properties.weights,
+                                from: edge.source.name,
+                                to: edge.target.name,
+                                distance: edge.properties.distance,
+                                congestion: edge.properties.congestion
                             }
                         });
                         
@@ -284,6 +288,8 @@
                         line.setMap(map);
                         polylines.push(line);
                     });
+                } else {
+                    console.error('Invalid connections data:', data);
                 }
             })
             .catch(error => {

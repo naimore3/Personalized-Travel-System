@@ -3,13 +3,14 @@ from flask import Flask, render_template, request, session, redirect, url_for, j
 from utils.excel_handler import ExcelHandler
 from utils.big_model import BigModel
 from utils.sorting_algorithm import get_top_ten_places  # 导入排序方法
-from utils.search_graph import search_graph
+from utils.graph import Graph
 import re
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # 用于会话管理
 excel_handler = ExcelHandler()
 big_model = BigModel()
+graph = Graph()  # 使用Graph类处理所有图相关操作
 
 # 添加 x-content-type-options 头
 @app.after_request
@@ -132,18 +133,39 @@ def update_graph():
         # 打印接收到的数据，用于调试
         print("Received POI data:", data['pois'])
         
+        # 检查数据格式
+        for poi in data['pois']:
+            if not all(key in poi for key in ['id', 'location', 'name']):
+                return jsonify({
+                    'error': f'Invalid POI data format. Missing required fields in: {poi}'
+                }), 400
+            if not all(key in poi['location'] for key in ['lng', 'lat']):
+                return jsonify({
+                    'error': f'Invalid location data format in POI: {poi}'
+                }), 400
+        
         # 使用图处理类处理连接关系
-        connections = search_graph.add_points(data['pois'])
-        
-        # 打印生成的连接数据，用于调试
-        print("Generated connections:", connections)
-        
-        return jsonify({
-            'connections': connections
-        })
+        try:
+            connections = graph.add_points(data['pois'])
+            print("Generated connections:", connections)
+            return jsonify({
+                'connections': connections
+            })
+        except Exception as e:
+            print("Error in graph.add_points:", str(e))
+            import traceback
+            traceback.print_exc()
+            return jsonify({
+                'error': f'Error processing graph: {str(e)}'
+            }), 500
+            
     except Exception as e:
-        print("Error in update_graph:", str(e))  # 打印错误信息
-        return jsonify({'error': str(e)}), 500
+        print("Error in update_graph:", str(e))
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'error': f'Server error: {str(e)}'
+        }), 500
 
 @app.route('/profile')
 def profile():
@@ -223,6 +245,75 @@ def add_history():
     if excel_handler.add_browse_history(user['id'], place_name):
         return jsonify({'success': True, 'message': '添加浏览记录成功'})
     return jsonify({'success': False, 'message': '添加浏览记录失败'}), 500
+
+@app.route('/get_places')
+def get_places():
+    """获取所有地点列表"""
+    try:
+        places = excel_handler.get_recommended_places()
+        place_names = [place['Place_Name'] for place in places]
+        return jsonify({
+            'success': True,
+            'places': place_names
+        })
+    except Exception as e:
+        return jsonify({
+            'success': False,
+            'message': str(e)
+        })
+
+@app.route('/domestic_map')
+def domestic_map():
+    """国内地图页面"""
+    return render_template('domestic_map.html')
+
+@app.route('/global_map')
+def global_map():
+    """环球地图页面"""
+    return render_template('global_map.html')
+
+@app.route('/update_map_graph', methods=['POST'])
+def update_map_graph():
+    """处理地图景点的连接关系"""
+    try:
+        data = request.json
+        if not data or 'pois' not in data:
+            return jsonify({'error': 'No POI data provided'}), 400
+        
+        # 打印接收到的数据，用于调试
+        print("Received POIs:", data['pois'])
+        
+        # 检查数据格式
+        for poi in data['pois']:
+            if not all(key in poi for key in ['id', 'location', 'name']):
+                return jsonify({
+                    'error': f'Invalid POI data format. Missing required fields in: {poi}'
+                }), 400
+            if not all(key in poi['location'] for key in ['lng', 'lat']):
+                return jsonify({
+                    'error': f'Invalid location data format in POI: {poi}'
+                }), 400
+        
+        # 使用图处理类处理连接关系
+        try:
+            connections = graph.add_points(data['pois'])
+            print("Generated connections:", connections)
+            return jsonify(connections)
+        except Exception as e:
+            print("Error in graph.add_points:", str(e))
+            import traceback
+            traceback.print_exc()
+            return jsonify({
+                'error': f'Error processing graph: {str(e)}'
+            }), 500
+            
+    except Exception as e:
+        print("Error in update_map_graph:", str(e))
+        import traceback
+        traceback.print_exc()
+        return jsonify({
+            'error': f'Server error: {str(e)}'
+        }), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
