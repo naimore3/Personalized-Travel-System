@@ -33,90 +33,94 @@ class Graph:
             return 0
 
     def _ensure_connectivity(self):
-        """确保图的连通性"""
-        def can_reach_all_nodes(start_node_id):
-            """检查从起始节点是否能到达所有其他节点"""
+        """确保图的连通性，使用更优的算法"""
+        def get_connected_components():
+            """获取所有连通分量"""
             visited = set()
-            def dfs(node_id):
+            components = []
+            
+            def dfs(node_id, component):
                 visited.add(node_id)
+                component.add(node_id)
                 for edge_id, edge in self.edges.items():
                     if node_id in edge_id:
-                        # 获取边的另一个端点
                         neighbor_id = edge['target']['id'] if edge['source']['id'] == node_id else edge['source']['id']
                         if neighbor_id not in visited:
-                            dfs(neighbor_id)
+                            dfs(neighbor_id, component)
             
-            dfs(start_node_id)
-            return visited == set(self.points.keys())
+            # 对每个未访问的节点进行DFS，找出所有连通分量
+            for node_id in self.points.keys():
+                if node_id not in visited:
+                    component = set()
+                    dfs(node_id, component)
+                    components.append(component)
+            
+            return components
 
-        # 获取所有节点ID
-        node_ids = list(self.points.keys())
-        if not node_ids:
-            return
+        def find_closest_components(components):
+            """找到两个最近的连通分量"""
+            min_distance = float('inf')
+            closest_pair = None
+            
+            # 遍历所有连通分量对
+            for i in range(len(components)):
+                for j in range(i + 1, len(components)):
+                    # 计算两个连通分量之间的最小距离
+                    for node1_id in components[i]:
+                        for node2_id in components[j]:
+                            distance = self.calculate_distance(
+                                self.points[node1_id],
+                                self.points[node2_id]
+                            )
+                            if distance < min_distance:
+                                min_distance = distance
+                                closest_pair = (node1_id, node2_id)
+            
+            return closest_pair
 
-        print(f"开始检查连通性，总节点数: {len(node_ids)}")
+        print("开始检查连通性...")
         
-        # 对每个节点检查连通性
-        for start_node_id in node_ids:
-            if not can_reach_all_nodes(start_node_id):
-                print(f"节点 {start_node_id} 不能到达所有其他节点")
-                # 如果从当前节点不能到达所有节点，找到未访问的节点
-                visited = set()
-                def dfs(node_id):
-                    visited.add(node_id)
-                    for edge_id, edge in self.edges.items():
-                        if node_id in edge_id:
-                            neighbor_id = edge['target']['id'] if edge['source']['id'] == node_id else edge['source']['id']
-                            if neighbor_id not in visited:
-                                dfs(neighbor_id)
-                dfs(start_node_id)
-                unvisited = set(node_ids) - visited
-                print(f"未访问节点数: {len(unvisited)}")
-
-                # 计算当前节点到所有未访问节点的距离
-                distances = []
-                for node_id in unvisited:
-                    distance = self.calculate_distance(self.points[start_node_id], self.points[node_id])
-                    distances.append((node_id, distance))
-                
-                # 按距离排序
-                distances.sort(key=lambda x: x[1])
-                print(f"按距离排序后的未访问节点数: {len(distances)}")
-                
-                # 依次尝试连接更远的点，直到图连通
-                for node_id, distance in distances:
-                    print(f"尝试连接节点 {start_node_id} 和 {node_id}，距离: {distance}米")
-                    # 添加边
-                    edge_id = tuple(sorted([start_node_id, node_id]))
-                    properties = self.edge_properties.generate_edge_properties(
-                        {'location': self.points[start_node_id]['location']},
-                        {'location': self.points[node_id]['location']}
-                    )
-                    
-                    self.edges[edge_id] = {
-                        'source': self.points[start_node_id],
-                        'target': self.points[node_id],
-                        'properties': properties
-                    }
-                    
-                    # 检查是否已经连通
-                    if can_reach_all_nodes(start_node_id):
-                        print(f"添加边后图已连通")
-                        break
-            else:
-                print(f"节点 {start_node_id} 可以到达所有其他节点")
-
+        while True:
+            # 获取当前的所有连通分量
+            components = get_connected_components()
+            print(f"当前连通分量数量: {len(components)}")
+            
+            # 如果只有一个连通分量，说明图已经连通
+            if len(components) == 1:
+                print("图已完全连通")
+                break
+            
+            # 找到最近的两个连通分量
+            closest_pair = find_closest_components(components)
+            if not closest_pair:
+                print("无法找到可连接的连通分量")
+                break
+            
+            # 连接最近的两个节点
+            node1_id, node2_id = closest_pair
+            edge_id = tuple(sorted([node1_id, node2_id]))
+            
+            # 生成边的属性
+            properties = self.edge_properties.generate_edge_properties(
+                {'location': self.points[node1_id]['location']},
+                {'location': self.points[node2_id]['location']}
+            )
+            
+            # 添加新边
+            self.edges[edge_id] = {
+                'source': self.points[node1_id],
+                'target': self.points[node2_id],
+                'properties': properties
+            }
+            
+            print(f"添加新边连接节点 {node1_id} 和 {node2_id}，距离: {self.calculate_distance(self.points[node1_id], self.points[node2_id])}米")
+        
         # 最终检查
-        final_check = True
-        for node_id in node_ids:
-            if not can_reach_all_nodes(node_id):
-                print(f"警告：最终检查时节点 {node_id} 仍然不能到达所有其他节点")
-                final_check = False
-        
-        if final_check:
+        final_components = get_connected_components()
+        if len(final_components) == 1:
             print("最终检查：图完全连通")
         else:
-            print("最终检查：图仍然存在不连通的情况")
+            print(f"最终检查：图仍然存在 {len(final_components)} 个不连通的子图")
 
     def add_points(self, points):
         """添加点并建立连接关系"""
