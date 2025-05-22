@@ -49,12 +49,13 @@
             flex: 1;
             overflow-y: auto;
             margin-top: 20px;
+            margin-bottom: 20px;
         }
         .poi-item {
-            padding: 10px;
+            padding: 8px;
             border: 1px solid #ddd;
             border-radius: 4px;
-            margin-bottom: 10px;
+            margin-bottom: 8px;
             cursor: pointer;
             transition: all 0.3s ease;
         }
@@ -64,6 +65,30 @@
         .poi-item.selected {
             background-color: #e3f2fd;
             border-color: #2196f3;
+        }
+        .poi-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            font-size: 0.9em;
+        }
+        .poi-name {
+            font-weight: bold;
+            margin-bottom: 4px;
+        }
+        .poi-details {
+            color: #666;
+            font-size: 0.85em;
+        }
+        .route-buttons {
+            display: flex;
+            gap: 10px;
+            margin-top: auto;
+            padding-top: 10px;
+            border-top: 1px solid #eee;
+        }
+        .route-buttons .btn {
+            flex: 1;
         }
         .map-wrapper {
             flex: 1;
@@ -86,6 +111,51 @@
             text-align: center;
             padding: 10px;
             color: #666;
+        }
+        /* 添加弹窗样式 */
+        .modal-overlay {
+            display: none;
+            position: fixed;
+            top: 0;
+            left: 0;
+            width: 100%;
+            height: 100%;
+            background-color: rgba(0, 0, 0, 0.5);
+            z-index: 1000;
+        }
+
+        .modal-content {
+            position: fixed;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            background-color: white;
+            padding: 20px;
+            border-radius: 8px;
+            box-shadow: 0 2px 10px rgba(0, 0, 0, 0.1);
+            width: 80%;
+            height: 80%;
+            z-index: 1001;
+        }
+
+        .modal-close {
+            position: absolute;
+            top: 10px;
+            right: 10px;
+            font-size: 24px;
+            cursor: pointer;
+            color: #666;
+        }
+
+        .modal-close:hover {
+            color: #333;
+        }
+
+        .modal-iframe {
+            width: 100%;
+            height: calc(100% - 40px);
+            border: none;
+            margin-top: 20px;
         }
     </style>
 </head>
@@ -113,12 +183,27 @@
                 <div class="poi-list" id="poiList">
                     <!-- 景点列表将在这里动态显示 -->
                 </div>
+
+                <!-- 修改规划路径按钮区域 -->
+                <div class="route-buttons">
+                    <button class="btn btn-primary" onclick="showRoutePlanner()">选择规划游览路径</button>
+                    <button class="btn btn-success" onclick="showAutoRoutePlanner()">自动规划游览路径</button>
+                </div>
             </div>
             
             <!-- 右侧地图 -->
             <div class="map-wrapper">
                 <div id="map"></div>
             </div>
+        </div>
+    </div>
+
+    <!-- 添加弹窗 -->
+    <div id="routeModal" class="modal-overlay">
+        <div class="modal-content">
+            <span class="modal-close" onclick="closeRouteModal()">&times;</span>
+            <h4>游览路径规划</h4>
+            <iframe id="routeFrame" class="modal-iframe" src="/route_planner"></iframe>
         </div>
     </div>
 
@@ -286,7 +371,9 @@
             }
         }
 
+        // 修改displayPOIs函数，保存当前POI数组
         function displayPOIs(pois) {
+            window.currentPOIs = pois; // 新增：全局保存当前POI数组
             const poiList = document.getElementById('poiList');
             poiList.innerHTML = '';
 
@@ -295,8 +382,31 @@
                 return;
             }
 
+            // 获取第一个点作为参考点
+            const firstPOI = pois[0];
+            const firstLocation = firstPOI.location;
+
+            // 计算两点之间的距离（米）
+            function calculateDistance(loc1, loc2) {
+                const R = 6371000; // 地球半径（米）
+                const lat1 = loc1.lat * Math.PI / 180;
+                const lat2 = loc2.lat * Math.PI / 180;
+                const deltaLat = (loc2.lat - loc1.lat) * Math.PI / 180;
+                const deltaLng = (loc2.lng - loc1.lng) * Math.PI / 180;
+
+                const a = Math.sin(deltaLat/2) * Math.sin(deltaLat/2) +
+                        Math.cos(lat1) * Math.cos(lat2) *
+                        Math.sin(deltaLng/2) * Math.sin(deltaLng/2);
+                const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+                return R * c;
+            }
+
             // 按距离排序
-            pois.sort((a, b) => a.distance - b.distance);
+            pois.sort((a, b) => {
+                const distA = calculateDistance(firstLocation, a.location);
+                const distB = calculateDistance(firstLocation, b.location);
+                return distA - distB;
+            });
 
             pois.forEach(poi => {
                 // 存储POI的坐标信息
@@ -305,12 +415,20 @@
                     lat: poi.location.lat
                 });
 
+                // 计算到第一个点的距离
+                const distance = calculateDistance(firstLocation, poi.location);
+                const distanceText = distance >= 1000 ? 
+                    (distance / 1000).toFixed(2) + ' 公里' : 
+                    Math.round(distance) + ' 米';
+
                 const poiItem = document.createElement('div');
                 poiItem.className = 'poi-item';
                 poiItem.innerHTML = `
-                    <h5 class="mb-1">${poi.name}</h5>
-                    <p class="mb-1 small text-muted">${poi.address}</p>
-                    <p class="mb-0 small">距离：${poi.distance}米</p>
+                    <div class="poi-name">${poi.name}</div>
+                    <div class="poi-info">
+                        <span class="poi-details">${poi.address}</span>
+                        <span class="poi-details">距离：${distanceText}</span>
+                    </div>
                 `;
                 
                 // 存储标记对象
@@ -499,7 +617,73 @@
                 });
             });
         }
+
+        // 添加显示弹窗的函数
+        function showRoutePlanner() {
+            if (selectedPOIs.size === 0) {
+                alert('请先选择至少一个景点');
+                return;
+            }
+            
+            // 将选中的景点信息转换为数组
+            const selectedPOIsArray = Array.from(selectedPOIs).map(poi => ({
+                id: poi.id,
+                name: poi.name,
+                location: poi.location,
+                address: poi.address
+            }));
+
+            // 将选中的景点信息传递给iframe
+            const routeFrame = document.getElementById('routeFrame');
+            routeFrame.src = '/route_planner?selected=' + encodeURIComponent(JSON.stringify(selectedPOIsArray));
+            
+            document.getElementById('routeModal').style.display = 'block';
+        }
+
+        // 添加关闭弹窗的函数
+        function closeRouteModal() {
+            document.getElementById('routeModal').style.display = 'none';
+        }
+
+        // 点击弹窗外部关闭弹窗
+        window.onclick = function(event) {
+            const modal = document.getElementById('routeModal');
+            if (event.target === modal) {
+                modal.style.display = 'none';
+            }
+        }
+
+        // 添加自动规划路径的函数
+        function showAutoRoutePlanner() {
+            // 判断当前poiList中是否有POI
+            const poiListDiv = document.getElementById('poiList');
+            // 获取所有poi-item元素
+            const poiItems = poiListDiv.getElementsByClassName('poi-item');
+            if (poiItems.length === 0) {
+                alert('请先搜索景点');
+                return;
+            }
+
+            // 取第一个POI作为起点
+            // 由于POI对象在displayPOIs中未全局保存，这里需要从poiItems中取数据
+            // 推荐在searchPOI中保存当前POI数组
+            if (!window.currentPOIs || window.currentPOIs.length === 0) {
+                alert('请先搜索景点');
+                return;
+            }
+            const firstPOI = window.currentPOIs[0];
+
+            const routeFrame = document.getElementById('routeFrame');
+            routeFrame.src = '/route_planner?auto=true&start=' + encodeURIComponent(JSON.stringify({
+                id: firstPOI.id,
+                name: firstPOI.name,
+                location: firstPOI.location,
+                address: firstPOI.address
+            }));
+
+            document.getElementById('routeModal').style.display = 'block';
+        }
     </script>
 </body>
 
-</html> 
+</html>

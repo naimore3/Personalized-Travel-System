@@ -315,5 +315,9 @@ def update_map_graph():
             'error': f'Server error: {str(e)}'
         }), 500
 
+@app.route('/route_planner')
+def route_planner():
+    return render_template('route_planner.html')
+
 if __name__ == '__main__':
     app.run(debug=True)

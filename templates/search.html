@@ -70,19 +70,19 @@
     <div class="main-container">
         <!-- 搜索区域 -->
         <div class="search-container">
-            <div class="form-group">
-                <label for="keyword">搜索地点：</label>
-                <input type="text" id="keyword" class="form-control" placeholder="请输入搜索关键词">
-            </div>
-            <div class="form-group mt-2">
-                <label for="city">城市（可选）：</label>
-                <select id="city" class="form-control">
-                    <option value="全国">全国</option>
-                    <option value="北京">北京</option>
-                    <option value="上海">上海</option>
-                    <option value="广州">广州</option>
-                    <option value="深圳">深圳</option>
-                    <option value="杭州">杭州</option>
+        <div class="form-group">
+            <label for="keyword">搜索地点：</label>
+            <input type="text" id="keyword" class="form-control" placeholder="请输入搜索关键词">
+        </div>
+        <div class="form-group mt-2">
+            <label for="city">城市（可选）：</label>
+            <select id="city" class="form-control">
+                <option value="全国">全国</option>
+                <option value="北京">北京</option>
+                <option value="上海">上海</option>
+                <option value="广州">广州</option>
+                <option value="深圳">深圳</option>
+                <option value="杭州">杭州</option>
                 </select>
             </div>
             <div class="form-group mt-2">
@@ -97,15 +97,15 @@
                     <option value="超市">超市</option>
                     <option value="银行">银行</option>
                     <option value="ATM">ATM</option>
-                </select>
-            </div>
-            <button id="searchBtn" class="btn btn-primary mt-3 w-100">开始搜索</button>
+            </select>
         </div>
+        <button id="searchBtn" class="btn btn-primary mt-3 w-100">开始搜索</button>
+    </div>
 
         <!-- 地图区域 -->
         <div class="map-container">
-            <div id="container"></div>
-            <div id="panel"></div>
+    <div id="container"></div>
+    <div id="panel"></div>
         </div>
     </div>
 
@@ -298,13 +298,13 @@
         }
         
         // 初始化地点搜索插件
-        var placeSearch = new AMap.PlaceSearch({
-            pageSize: 5,
-            pageIndex: 1,
-            city: "全国",
-            citylimit: false,
-            map: map,
-            panel: "panel",
+            var placeSearch = new AMap.PlaceSearch({
+                pageSize: 5,
+                pageIndex: 1,
+                city: "全国",
+                citylimit: false,
+                map: map,
+                panel: "panel",
             autoFitView: false
         });
 
@@ -362,27 +362,27 @@
             });
         }
             
-        // 绑定搜索按钮事件
-        document.getElementById('searchBtn').addEventListener('click', function() {
-            var keyword = document.getElementById('keyword').value.trim();
-            var city = document.getElementById('city').value;
+            // 绑定搜索按钮事件
+            document.getElementById('searchBtn').addEventListener('click', function() {
+                var keyword = document.getElementById('keyword').value.trim();
+                var city = document.getElementById('city').value;
             var poiType = document.getElementById('poiType').value;
-            
-            if (!keyword) {
-                alert('请输入搜索关键词');
-                return;
-            }
-            
+                
+                if (!keyword) {
+                    alert('请输入搜索关键词');
+                    return;
+                }
+                
             // 清除之前的搜索结果和地图内容
             clearMapContent();
             
             console.log(`搜索关键词: ${keyword}, 城市: ${city}, 设施类型: ${poiType}`);
-            
-            // 更新搜索参数
-            placeSearch.setCity(city);
-            
+                
+                // 更新搜索参数
+                placeSearch.setCity(city);
+                
             // 执行地点搜索
-            placeSearch.search(keyword, function(status, result) {
+                placeSearch.search(keyword, function(status, result) {
                 if (status === 'complete' && result.info === 'OK') {
                     if (result.poiList && result.poiList.pois && result.poiList.pois.length > 0) {
                         var firstPOI = result.poiList.pois[0];

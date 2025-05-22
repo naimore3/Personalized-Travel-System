@@ -1,0 +1,122 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>游览路径规划</title>
+    <style>
+        body {
+            margin: 0;
+            padding: 0;
+            font-family: Arial, sans-serif;
+        }
+        .route-container {
+            padding: 20px;
+        }
+        .route-header {
+            margin-bottom: 20px;
+        }
+        .route-content {
+            background-color: #f8f9fa;
+            padding: 20px;
+            border-radius: 8px;
+        }
+        .selected-places {
+            margin-top: 20px;
+        }
+        .place-item {
+            padding: 10px;
+            border: 1px solid #ddd;
+            border-radius: 4px;
+            margin-bottom: 10px;
+            background-color: white;
+        }
+        .hidden {
+            display: none;
+        }
+    </style>
+</head>
+<body>
+    <div class="route-container">
+        <div class="route-header">
+            <h2>游览路径规划</h2>
+        </div>
+        <div class="route-content">
+            <div id="manualMode" class="">
+                <div id="selectedPlaces" class="selected-places">
+                    <!-- 选中的景点将在这里显示 -->
+                </div>
+            </div>
+            <div id="autoMode" class="hidden">
+                <!-- 自动规划游览路径的内容区域 -->
+                <h3>自动规划路径</h3>
+                <div id="autoRoutePlaceholder" class="selected-places">
+                    <p>自动规划功能开发中，敬请期待。</p>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script>
+        // 获取URL参数
+        function getUrlParams() {
+            const params = new URLSearchParams(window.location.search);
+            const selected = params.get('selected');
+            const auto = params.get('auto');
+            // 自动规划时不需要start参数
+            return {
+                selected: selected ? JSON.parse(decodeURIComponent(selected)) : null,
+                auto: auto === 'true'
+            };
+        }
+
+        // 显示选中的景点（选择规划模式）
+        function displaySelectedPlaces() {
+            const params = getUrlParams();
+            const container = document.getElementById('selectedPlaces');
+            // 仅在非自动规划模式下显示选择提示
+            if (params.auto) {
+                container.innerHTML = '';
+                return;
+            }
+            if (params.selected) {
+                container.innerHTML = `
+                    <h3>已选择的景点（${params.selected.length}个）</h3>
+                    ${params.selected.map(place => `
+                        <div class="place-item">
+                            <h4>${place.name}</h4>
+                            <p>地址：${place.address}</p>
+                        </div>
+                    `).join('')}
+                `;
+            } else {
+                container.innerHTML = '<p>未选择任何景点</p>';
+            }
+        }
+
+        // 模式切换（仅页面内部切换，不再弹窗内切换）
+        function switchMode(isAuto) {
+            const manualMode = document.getElementById('manualMode');
+            const autoMode = document.getElementById('autoMode');
+            if (isAuto) {
+                manualMode.classList.add('hidden');
+                autoMode.classList.remove('hidden');
+            } else {
+                manualMode.classList.remove('hidden');
+                autoMode.classList.add('hidden');
+            }
+        }
+
+        // 页面加载时根据参数展示内容
+        document.addEventListener('DOMContentLoaded', function() {
+            const params = getUrlParams();
+            displaySelectedPlaces();
+            if (params.auto) {
+                switchMode(true);
+            } else {
+                switchMode(false);
+            }
+        });
+    </script>
+</body>
+</html>
