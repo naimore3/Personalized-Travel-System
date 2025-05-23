@@ -4,6 +4,7 @@ from utils.excel_handler import ExcelHandler
 from utils.big_model import BigModel
 from utils.sorting_algorithm import get_top_ten_places  # 导入排序方法
 from utils.graph import Graph
+from utils.select_routing_planner import plan_route
 import re
 
 app = Flask(__name__)
@@ -318,6 +319,33 @@ def update_map_graph():
 @app.route('/route_planner')
 def route_planner():
     return render_template('route_planner.html')
+
+@app.route('/calculate_route', methods=['POST'])
+def calculate_route():
+    try:
+        data = request.json
+        if not data or 'pois' not in data:
+            return jsonify({'error': 'No POI data provided'}), 400
+
+        # 获取所有POI点
+        pois = data['pois']
+        
+        # 获取图的所有边
+        edges = graph.get_all_edges()
+        
+        # 使用动态规划算法计算最优路径
+        route = plan_route(pois, edges, mode='distance')
+        
+        return jsonify({
+            'success': True,
+            'route': route
+        })
+    except Exception as e:
+        print("Error in calculate_route:", str(e))
+        return jsonify({
+            'success': False,
+            'error': str(e)
+        }), 500
 
 if __name__ == '__main__':
     app.run(debug=True)

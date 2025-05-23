@@ -221,4 +221,41 @@ class Graph:
                     'point': self.points[neighbor_id],
                     'edge': edge
                 })
-        return connections 
+        return connections
+
+    def get_all_edges(self):
+        """获取图中的所有边"""
+        edges = []
+        for edge_id, edge in self.edges.items():
+            try:
+                source_id, target_id = edge_id
+                properties = edge.get('properties', {})
+                
+                # 获取距离，如果不存在则计算
+                if 'distance' not in properties:
+                    distance = self.calculate_distance(
+                        self.points[source_id],
+                        self.points[target_id]
+                    )
+                else:
+                    distance = properties['distance']
+                
+                # 如果没有时间属性，根据距离估算时间（假设步行速度5km/h）
+                if 'time' not in properties:
+                    time = distance / (5000/60)  # 将米转换为分钟
+                else:
+                    time = properties['time']
+                
+                edges.append({
+                    'from': source_id,
+                    'to': target_id,
+                    'distance': distance,
+                    'time': time,
+                    'source': self.points[source_id],
+                    'target': self.points[target_id]
+                })
+            except Exception as e:
+                print(f"Error processing edge {edge_id}: {str(e)}")
+                continue
+                
+        return edges 

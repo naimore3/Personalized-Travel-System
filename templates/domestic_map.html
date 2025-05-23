@@ -371,9 +371,7 @@
             }
         }
 
-        // 修改displayPOIs函数，保存当前POI数组
         function displayPOIs(pois) {
-            window.currentPOIs = pois; // 新增：全局保存当前POI数组
             const poiList = document.getElementById('poiList');
             poiList.innerHTML = '';
 
@@ -655,23 +653,17 @@
 
         // 添加自动规划路径的函数
         function showAutoRoutePlanner() {
-            // 判断当前poiList中是否有POI
-            const poiListDiv = document.getElementById('poiList');
-            // 获取所有poi-item元素
-            const poiItems = poiListDiv.getElementsByClassName('poi-item');
-            if (poiItems.length === 0) {
+            if (places.length === 0) {
                 alert('请先搜索景点');
                 return;
             }
-
-            // 取第一个POI作为起点
-            // 由于POI对象在displayPOIs中未全局保存，这里需要从poiItems中取数据
-            // 推荐在searchPOI中保存当前POI数组
-            if (!window.currentPOIs || window.currentPOIs.length === 0) {
-                alert('请先搜索景点');
+            
+            // 获取第一个景点作为起点
+            const firstPOI = Array.from(selectedPOIs)[0];
+            if (!firstPOI) {
+                alert('请先搜索并选择景点');
                 return;
             }
-            const firstPOI = window.currentPOIs[0];
 
             const routeFrame = document.getElementById('routeFrame');
             routeFrame.src = '/route_planner?auto=true&start=' + encodeURIComponent(JSON.stringify({
@@ -680,10 +672,10 @@
                 location: firstPOI.location,
                 address: firstPOI.address
             }));
-
+            
             document.getElementById('routeModal').style.display = 'block';
         }
     </script>
 </body>
 
-</html>
+</html> 

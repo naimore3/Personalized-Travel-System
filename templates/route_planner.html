@@ -12,14 +12,31 @@
         }
         .route-container {
             padding: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100vh;
         }
         .route-header {
             margin-bottom: 20px;
         }
         .route-content {
+            display: flex;
+            flex: 1;
+            gap: 20px;
+        }
+        .route-map {
+            flex: 2;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            position: relative;
+            min-height: 400px;
+        }
+        .route-details {
+            flex: 1;
             background-color: #f8f9fa;
             padding: 20px;
             border-radius: 8px;
+            overflow-y: auto;
         }
         .selected-places {
             margin-top: 20px;
@@ -31,8 +48,98 @@
             margin-bottom: 10px;
             background-color: white;
         }
-        .hidden {
+        .route-path {
+            margin-top: 20px;
+            padding: 15px;
+            background-color: white;
+            border-radius: 8px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .path-item {
+            padding: 10px;
+            margin: 5px 0;
+            border-left: 4px solid #ddd;
+            background-color: #f8f9fa;
+        }
+        .path-item.start {
+            border-left-color: #dc3545;
+        }
+        .path-item.end {
+            border-left-color: #dc3545;
+        }
+        .path-item.via {
+            border-left-color: #ffc107;
+        }
+        .path-item.visit {
+            border-left-color: #007bff;
+        }
+        .path-info {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-top: 5px;
+            font-size: 0.9em;
+            color: #666;
+        }
+        .path-type {
+            font-weight: bold;
+            margin-right: 10px;
+        }
+        .loading {
+            text-align: center;
+            padding: 20px;
+            color: #666;
+        }
+        .error {
+            color: #dc3545;
+            padding: 10px;
+            margin: 10px 0;
+            background-color: #f8d7da;
+            border-radius: 4px;
+        }
+        .node {
+            position: absolute;
+            width: 12px;
+            height: 12px;
+            border-radius: 50%;
+            transform: translate(-50%, -50%);
+            cursor: pointer;
+            z-index: 2;
+        }
+        .node.start, .node.end {
+            background-color: #dc3545;
+        }
+        .node.via {
+            background-color: #ffc107;
+        }
+        .node.visit {
+            background-color: #007bff;
+        }
+        .node-tooltip {
+            position: absolute;
+            background-color: white;
+            padding: 8px;
+            border-radius: 4px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 3;
             display: none;
+            min-width: 150px;
+        }
+        .arrow {
+            position: absolute;
+            pointer-events: none;
+            z-index: 1;
+        }
+        .arrow::after {
+            content: '';
+            position: absolute;
+            right: -6px;
+            top: -4px;
+            width: 0;
+            height: 0;
+            border-left: 6px solid currentColor;
+            border-top: 4px solid transparent;
+            border-bottom: 4px solid transparent;
         }
     </style>
 </head>
@@ -42,16 +149,15 @@
             <h2>游览路径规划</h2>
         </div>
         <div class="route-content">
-            <div id="manualMode" class="">
+            <div id="routeMap" class="route-map">
+                <!-- 路径可视化将在这里显示 -->
+            </div>
+            <div class="route-details">
                 <div id="selectedPlaces" class="selected-places">
                     <!-- 选中的景点将在这里显示 -->
                 </div>
-            </div>
-            <div id="autoMode" class="hidden">
-                <!-- 自动规划游览路径的内容区域 -->
-                <h3>自动规划路径</h3>
-                <div id="autoRoutePlaceholder" class="selected-places">
-                    <p>自动规划功能开发中，敬请期待。</p>
+                <div id="routePath" class="route-path">
+                    <!-- 路径信息将在这里显示 -->
                 </div>
             </div>
         </div>
@@ -63,23 +169,30 @@
             const params = new URLSearchParams(window.location.search);
             const selected = params.get('selected');
             const auto = params.get('auto');
-            // 自动规划时不需要start参数
+            const start = params.get('start');
+            
             return {
                 selected: selected ? JSON.parse(decodeURIComponent(selected)) : null,
-                auto: auto === 'true'
+                auto: auto === 'true',
+                start: start ? JSON.parse(decodeURIComponent(start)) : null
             };
         }
 
-        // 显示选中的景点（选择规划模式）
+        // 显示选中的景点
         function displaySelectedPlaces() {
             const params = getUrlParams();
             const container = document.getElementById('selectedPlaces');
-            // 仅在非自动规划模式下显示选择提示
-            if (params.auto) {
-                container.innerHTML = '';
-                return;
-            }
-            if (params.selected) {
+            
+            if (params.auto && params.start) {
+                container.innerHTML = `
+                    <h3>自动规划路径</h3>
+                    <div class="place-item">
+                        <h4>起点：${params.start.name}</h4>
+                        <p>地址：${params.start.address}</p>
+                    </div>
+                `;
+                calculateRoute([params.start]);
+            } else if (params.selected) {
                 container.innerHTML = `
                     <h3>已选择的景点（${params.selected.length}个）</h3>
                     ${params.selected.map(place => `
@@ -89,34 +202,228 @@
                         </div>
                     `).join('')}
                 `;
+                calculateRoute(params.selected);
             } else {
                 container.innerHTML = '<p>未选择任何景点</p>';
             }
         }
 
-        // 模式切换（仅页面内部切换，不再弹窗内切换）
-        function switchMode(isAuto) {
-            const manualMode = document.getElementById('manualMode');
-            const autoMode = document.getElementById('autoMode');
-            if (isAuto) {
-                manualMode.classList.add('hidden');
-                autoMode.classList.remove('hidden');
-            } else {
-                manualMode.classList.remove('hidden');
-                autoMode.classList.add('hidden');
+        // 计算最优路径
+        async function calculateRoute(pois) {
+            const routePath = document.getElementById('routePath');
+            const routeMap = document.getElementById('routeMap');
+            routePath.innerHTML = '<div class="loading">正在计算最优路径...</div>';
+            routeMap.innerHTML = '';
+
+            try {
+                const response = await fetch('/calculate_route', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ pois: pois })
+                });
+
+                const data = await response.json();
+                
+                if (!data.success) {
+                    throw new Error(data.error || '计算路径失败');
+                }
+
+                displayRoute(data.route);
+                visualizeRoute(data.route);
+            } catch (error) {
+                console.error('计算路径失败:', error);
+                routePath.innerHTML = `
+                    <div class="error">
+                        计算路径失败: ${error.message}
+                    </div>
+                `;
             }
         }
 
-        // 页面加载时根据参数展示内容
-        document.addEventListener('DOMContentLoaded', function() {
+        // 可视化路径
+        function visualizeRoute(route) {
+            const routeMap = document.getElementById('routeMap');
+            const mapWidth = routeMap.clientWidth;
+            const mapHeight = routeMap.clientHeight;
+            
+            // 计算经纬度范围
+            let minLng = Infinity, maxLng = -Infinity;
+            let minLat = Infinity, maxLat = -Infinity;
+            route.forEach(point => {
+                const { lng, lat } = point.location;
+                minLng = Math.min(minLng, lng);
+                maxLng = Math.max(maxLng, lng);
+                minLat = Math.min(minLat, lat);
+                maxLat = Math.max(maxLat, lat);
+            });
+
+            // 添加边距
+            const padding = 0.1;
+            const lngRange = maxLng - minLng;
+            const latRange = maxLat - minLat;
+            minLng -= lngRange * padding;
+            maxLng += lngRange * padding;
+            minLat -= latRange * padding;
+            maxLat += latRange * padding;
+
+            // 创建节点和连线
+            route.forEach((point, index) => {
+                // 计算节点位置
+                const x = ((point.location.lng - minLng) / (maxLng - minLng)) * mapWidth;
+                const y = ((maxLat - point.location.lat) / (maxLat - minLat)) * mapHeight;
+
+                // 创建节点
+                const node = document.createElement('div');
+                node.className = `node ${index === 0 ? 'start' : index === route.length - 1 ? 'end' : point.is_via ? 'via' : 'visit'}`;
+                node.style.left = `${x}px`;
+                node.style.top = `${y}px`;
+
+                // 创建提示框
+                const tooltip = document.createElement('div');
+                tooltip.className = 'node-tooltip';
+                tooltip.innerHTML = `
+                    <strong>${point.name}</strong><br>
+                    ${point.address || '地址未知'}<br>
+                    ${point.distance ? `距离下一站: ${point.distance >= 1000 ? 
+                        (point.distance / 1000).toFixed(2) + ' 公里' : 
+                        Math.round(point.distance) + ' 米'}` : ''}<br>
+                    ${point.time ? `预计用时: ${Math.round(point.time)} 分钟` : ''}
+                `;
+                node.appendChild(tooltip);
+
+                // 添加鼠标事件
+                node.addEventListener('mouseenter', () => {
+                    tooltip.style.display = 'block';
+                    tooltip.style.left = `${x + 10}px`;
+                    tooltip.style.top = `${y - 10}px`;
+                });
+                node.addEventListener('mouseleave', () => {
+                    tooltip.style.display = 'none';
+                });
+
+                routeMap.appendChild(node);
+
+                // 创建连线
+                if (index < route.length - 1) {
+                    const nextPoint = route[index + 1];
+                    const nextX = ((nextPoint.location.lng - minLng) / (maxLng - minLng)) * mapWidth;
+                    const nextY = ((maxLat - nextPoint.location.lat) / (maxLat - minLat)) * mapHeight;
+
+                    const arrow = document.createElement('div');
+                    arrow.className = 'arrow';
+                    
+                    // 计算箭头位置和角度
+                    const dx = nextX - x;
+                    const dy = nextY - y;
+                    const angle = Math.atan2(dy, dx) * 180 / Math.PI;
+                    const length = Math.sqrt(dx * dx + dy * dy);
+                    
+                    arrow.style.width = `${length}px`;
+                    arrow.style.left = `${x}px`;
+                    arrow.style.top = `${y}px`;
+                    arrow.style.transform = `rotate(${angle}deg)`;
+                    arrow.style.transformOrigin = '0 0';
+                    arrow.style.borderTop = '2px solid #666';
+                    
+                    routeMap.appendChild(arrow);
+                }
+            });
+        }
+
+        // 显示路径信息
+        function displayRoute(route) {
+            const routePath = document.getElementById('routePath');
+            
+            if (!route || route.length === 0) {
+                routePath.innerHTML = '<div class="error">未找到可行路径</div>';
+                return;
+            }
+
+            let totalDistance = 0;
+            let totalTime = 0;
+
+            const routeHtml = route.map((point, index) => {
+                // 计算到下一个点的距离和时间（如果有）
+                let distanceInfo = '';
+                let timeInfo = '';
+                if (index < route.length - 1) {
+                    const nextPoint = route[index + 1];
+                    if (point.distance) {
+                        totalDistance += point.distance;
+                        distanceInfo = `
+                            <span class="path-info">
+                                到下一站距离: ${point.distance >= 1000 ? 
+                                    (point.distance / 1000).toFixed(2) + ' 公里' : 
+                                    Math.round(point.distance) + ' 米'}
+                            </span>
+                        `;
+                    }
+                    if (point.time) {
+                        totalTime += point.time;
+                        timeInfo = `
+                            <span class="path-info">
+                                预计用时: ${Math.round(point.time)} 分钟
+                            </span>
+                        `;
+                    }
+                }
+
+                // 确定点的类型
+                let typeClass = 'via';
+                let typeText = '途经点';
+                if (index === 0) {
+                    typeClass = 'start';
+                    typeText = '起点';
+                } else if (index === route.length - 1) {
+                    typeClass = 'end';
+                    typeText = '终点';
+                } else if (!point.is_via) {
+                    typeClass = 'visit';
+                    typeText = '游览点';
+                }
+
+                return `
+                    <div class="path-item ${typeClass}">
+                        <div class="path-type">${typeText}</div>
+                        <div class="path-name">${point.name}</div>
+                        <div class="path-address">${point.address || '地址未知'}</div>
+                        ${distanceInfo}
+                        ${timeInfo}
+                    </div>
+                `;
+            }).join('');
+
+            // 添加总距离和时间信息
+            const summaryHtml = `
+                <div class="path-summary" style="margin-top: 20px; padding: 10px; background-color: #e9ecef; border-radius: 4px;">
+                    <p><strong>总距离：</strong>${totalDistance >= 1000 ? 
+                        (totalDistance / 1000).toFixed(2) + ' 公里' : 
+                        Math.round(totalDistance) + ' 米'}</p>
+                    <p><strong>预计总用时：</strong>${Math.round(totalTime)} 分钟</p>
+                </div>
+            `;
+
+            routePath.innerHTML = `
+                <h3>规划路径</h3>
+                ${routeHtml}
+                ${summaryHtml}
+            `;
+        }
+
+        // 页面加载时显示选中的景点并计算路径
+        window.onload = displaySelectedPlaces;
+        
+        // 窗口大小改变时重新计算路径可视化
+        window.addEventListener('resize', () => {
             const params = getUrlParams();
-            displaySelectedPlaces();
-            if (params.auto) {
-                switchMode(true);
-            } else {
-                switchMode(false);
+            if (params.auto && params.start) {
+                calculateRoute([params.start]);
+            } else if (params.selected) {
+                calculateRoute(params.selected);
             }
         });
     </script>
 </body>
-</html>
+</html> 
