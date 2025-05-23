@@ -10,57 +10,64 @@
             margin: 0;
             padding: 0;
             font-family: Arial, sans-serif;
+            height: 100vh;
+            overflow: hidden; /* 防止页面整体滚动 */
         }
         .route-container {
-            padding: 20px;
+            height: 100vh;
             display: flex;
             flex-direction: column;
-            height: 100vh;
         }
         .route-header {
-            margin-bottom: 20px;
+            padding: 20px;
+            background-color: #fff;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            z-index: 1;
         }
         .route-content {
-            display: flex;
             flex: 1;
-            gap: 20px;
-        }
-        #mapContainer {
-            flex: 2;
-            min-height: 400px;
-            border-radius: 8px;
-            overflow: hidden;
+            display: flex;
+            overflow: hidden; /* 防止内容溢出 */
             position: relative;
         }
+        #mapContainer {
+            width: 60%; /* 固定宽度比例 */
+            height: 100%;
+            position: sticky;
+            left: 0;
+            top: 0;
+        }
         .route-details {
-            flex: 1;
-            background-color: #f8f9fa;
+            width: 40%; /* 固定宽度比例 */
+            height: 100%;
+            overflow-y: auto; /* 允许垂直滚动 */
             padding: 20px;
-            border-radius: 8px;
-            overflow-y: auto;
+            background-color: #f8f9fa;
+            box-sizing: border-box;
         }
         .selected-places {
-            margin-top: 20px;
+            margin-bottom: 20px;
         }
         .place-item {
-            padding: 10px;
+            padding: 15px;
             border: 1px solid #ddd;
-            border-radius: 4px;
-            margin-bottom: 10px;
+            border-radius: 8px;
+            margin-bottom: 15px;
             background-color: white;
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
         }
         .route-path {
-            margin-top: 20px;
-            padding: 15px;
             background-color: white;
             border-radius: 8px;
-            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+            box-shadow: 0 1px 3px rgba(0,0,0,0.1);
+            padding: 15px;
         }
         .path-item {
-            padding: 10px;
-            margin: 5px 0;
+            padding: 15px;
+            margin: 10px 0;
             border-left: 4px solid #ddd;
             background-color: #f8f9fa;
+            border-radius: 0 8px 8px 0;
         }
         .path-item.start {
             border-left-color: #dc3545;
@@ -78,25 +85,59 @@
             display: flex;
             justify-content: space-between;
             align-items: center;
-            margin-top: 5px;
+            margin-top: 8px;
             font-size: 0.9em;
             color: #666;
         }
         .path-type {
             font-weight: bold;
             margin-right: 10px;
+            color: #333;
         }
         .loading {
             text-align: center;
             padding: 20px;
             color: #666;
+            background-color: #f8f9fa;
+            border-radius: 8px;
+            margin: 10px 0;
         }
         .error {
             color: #dc3545;
-            padding: 10px;
+            padding: 15px;
             margin: 10px 0;
             background-color: #f8d7da;
+            border-radius: 8px;
+            border: 1px solid #f5c6cb;
+        }
+        /* 美化滚动条 */
+        .route-details::-webkit-scrollbar {
+            width: 8px;
+        }
+        .route-details::-webkit-scrollbar-track {
+            background: #f1f1f1;
             border-radius: 4px;
+        }
+        .route-details::-webkit-scrollbar-thumb {
+            background: #888;
+            border-radius: 4px;
+        }
+        .route-details::-webkit-scrollbar-thumb:hover {
+            background: #555;
+        }
+        /* 响应式布局 */
+        @media (max-width: 768px) {
+            .route-content {
+                flex-direction: column;
+            }
+            #mapContainer {
+                width: 100%;
+                height: 50vh;
+            }
+            .route-details {
+                width: 100%;
+                height: 50vh;
+            }
         }
         .node {
             position: absolute;
@@ -539,68 +580,6 @@
             }
         }
 
-        // 计算最优路径
-        async function calculateRoute(pois) {
-            const routePath = document.getElementById('routePath');
-            routePath.innerHTML = '<div class="loading">正在计算最优路径...</div>';
-
-            try {
-                // 验证输入数据
-                if (!Array.isArray(pois) || pois.length === 0) {
-                    throw new Error('无效的景点数据：数据为空或格式不正确');
-                }
-
-                // 验证每个点的数据
-                const validPois = pois.filter(poi => isValidPoi(poi));
-                if (validPois.length === 0) {
-                    throw new Error('没有有效的景点坐标数据：请确保所有景点都包含有效的坐标信息');
-                }
-
-                if (validPois.length !== pois.length) {
-                    console.warn(`过滤掉了 ${pois.length - validPois.length} 个无效的景点数据`);
-                }
-
-                const response = await fetch('/calculate_route', {
-                    method: 'POST',
-                    headers: {
-                        'Content-Type': 'application/json',
-                    },
-                    body: JSON.stringify({ pois: validPois })
-                });
-
-                if (!response.ok) {
-                    throw new Error(`服务器响应错误: ${response.status} ${response.statusText}`);
-                }
-
-                const data = await response.json();
-                
-                if (!data.success) {
-                    throw new Error(data.error || '计算路径失败：服务器返回错误');
-                }
-
-                if (!data.route || !Array.isArray(data.route) || data.route.length === 0) {
-                    throw new Error('返回的路径数据无效：服务器返回的路径数据格式不正确');
-                }
-
-                displayRoute(data.route);
-                displayRouteOnMap(data.route);
-            } catch (error) {
-                console.error('计算路径失败:', error);
-                routePath.innerHTML = `
-                    <div class="error">
-                        <h4>计算路径失败</h4>
-                        <p>${error.message}</p>
-                        <p>请检查：</p>
-                        <ul>
-                            <li>所有景点是否包含有效的坐标信息</li>
-                            <li>网络连接是否正常</li>
-                            <li>服务器是否正常运行</li>
-                        </ul>
-                    </div>
-                `;
-            }
-        }
-
         // 显示路径信息
         function displayRoute(route) {
             const routePath = document.getElementById('routePath');
@@ -610,6 +589,8 @@
                 return;
             }
 
+            console.log('路径数据:', route); // 添加调试日志
+
             let totalDistance = 0;
             let totalTime = 0;
 
@@ -617,23 +598,98 @@
                 // 计算到下一个点的距离和时间（如果有）
                 let distanceInfo = '';
                 let timeInfo = '';
+                let transportInfo = '';
+                
                 if (index < route.length - 1) {
                     const nextPoint = route[index + 1];
-                    if (point.distance) {
-                        totalDistance += point.distance;
+                    
+                    // 获取边的属性
+                    let properties = {};
+                    
+                    // 尝试从不同位置获取边的属性
+                    if (point.edge && point.edge.properties) {
+                        properties = point.edge.properties;
+                    } else if (point.properties) {
+                        properties = point.properties;
+                    } else if (point.edge_properties) {
+                        properties = point.edge_properties;
+                    }
+
+                    console.log(`点 ${index} 的边属性:`, properties); // 添加调试日志
+
+                    // 处理距离信息
+                    if (properties.distance) {
+                        totalDistance += properties.distance;
                         distanceInfo = `
                             <span class="path-info">
-                                到下一站距离: ${point.distance >= 1000 ? 
-                                    (point.distance / 1000).toFixed(2) + ' 公里' : 
-                                    Math.round(point.distance) + ' 米'}
+                                到下一站距离: ${properties.distance >= 1000 ? 
+                                    (properties.distance / 1000).toFixed(2) + ' 公里' : 
+                                    Math.round(properties.distance) + ' 米'}
                             </span>
                         `;
+                    } else {
+                        // 如果没有距离信息，尝试计算
+                        try {
+                            const distance = AMap.GeometryUtil.distance(
+                                [point.location.getLng(), point.location.getLat()],
+                                [nextPoint.location.getLng(), nextPoint.location.getLat()]
+                            );
+                            totalDistance += distance;
+                            distanceInfo = `
+                                <span class="path-info">
+                                    到下一站距离: ${distance >= 1000 ? 
+                                        (distance / 1000).toFixed(2) + ' 公里' : 
+                                        Math.round(distance) + ' 米'}
+                                </span>
+                            `;
+                        } catch (error) {
+                            console.warn('计算距离失败:', error);
+                        }
                     }
-                    if (point.time) {
-                        totalTime += point.time;
+
+                    // 处理交通方式和时间信息
+                    if (properties.times && Object.keys(properties.times).length > 0) {
+                        // 找出用时最短的交通方式
+                        let minTime = Infinity;
+                        let bestMode = '';
+                        
+                        for (const [mode, time] of Object.entries(properties.times)) {
+                            if (time < minTime) {
+                                minTime = time;
+                                bestMode = mode;
+                            }
+                        }
+
+                        if (bestMode) {
+                            totalTime += minTime;
+                            transportInfo = `
+                                <span class="path-info transport-mode" style="color: #007bff;">
+                                    ${bestMode}
+                                </span>
+                            `;
+                            
+                            timeInfo = `
+                                <span class="path-info">
+                                    预计用时: ${Math.round(minTime)} 分钟
+                                </span>
+                            `;
+                        }
+                    } else {
+                        // 如果没有交通方式信息，使用默认的步行时间
+                        const distance = properties.distance || AMap.GeometryUtil.distance(
+                            [point.location.getLng(), point.location.getLat()],
+                            [nextPoint.location.getLng(), nextPoint.location.getLat()]
+                        );
+                        const walkingTime = distance / (5000/60); // 步行速度5km/h
+                        totalTime += walkingTime;
+                        transportInfo = `
+                            <span class="path-info transport-mode" style="color: #007bff;">
+                                步行
+                            </span>
+                        `;
                         timeInfo = `
                             <span class="path-info">
-                                预计用时: ${Math.round(point.time)} 分钟
+                                预计用时: ${Math.round(walkingTime)} 分钟
                             </span>
                         `;
                     }
@@ -658,19 +714,23 @@
                         <div class="path-type">${typeText}</div>
                         <div class="path-name">${point.name}</div>
                         <div class="path-address">${point.address || '地址未知'}</div>
-                        ${distanceInfo}
-                        ${timeInfo}
+                        <div class="path-details" style="display: flex; justify-content: space-between; align-items: center; margin-top: 8px;">
+                            ${distanceInfo}
+                            ${transportInfo}
+                            ${timeInfo}
+                        </div>
                     </div>
                 `;
             }).join('');
 
             // 添加总距离和时间信息
             const summaryHtml = `
-                <div class="path-summary" style="margin-top: 20px; padding: 10px; background-color: #e9ecef; border-radius: 4px;">
-                    <p><strong>总距离：</strong>${totalDistance >= 1000 ? 
+                <div class="path-summary" style="margin-top: 20px; padding: 15px; background-color: #e9ecef; border-radius: 8px; box-shadow: 0 1px 3px rgba(0,0,0,0.1);">
+                    <h4 style="margin: 0 0 10px 0; color: #333;">行程总览</h4>
+                    <p style="margin: 5px 0;"><strong>总距离：</strong>${totalDistance >= 1000 ? 
                         (totalDistance / 1000).toFixed(2) + ' 公里' : 
                         Math.round(totalDistance) + ' 米'}</p>
-                    <p><strong>预计总用时：</strong>${Math.round(totalTime)} 分钟</p>
+                    <p style="margin: 5px 0;"><strong>预计总用时：</strong>${Math.round(totalTime)} 分钟</p>
                 </div>
             `;
 
@@ -679,6 +739,89 @@
                 ${routeHtml}
                 ${summaryHtml}
             `;
+        }
+
+        // 计算最优路径
+        async function calculateRoute(pois) {
+            const routePath = document.getElementById('routePath');
+            routePath.innerHTML = '<div class="loading">正在计算最优路径...</div>';
+
+            try {
+                // 验证输入数据
+                if (!Array.isArray(pois) || pois.length === 0) {
+                    throw new Error('无效的景点数据：数据为空或格式不正确');
+                }
+
+                // 验证每个点的数据
+                const validPois = pois.filter(poi => isValidPoi(poi));
+                if (validPois.length === 0) {
+                    throw new Error('没有有效的景点坐标数据：请确保所有景点都包含有效的坐标信息');
+                }
+
+                if (validPois.length !== pois.length) {
+                    console.warn(`过滤掉了 ${pois.length - validPois.length} 个无效的景点数据`);
+                }
+
+                // 确保所有POI都有location对象
+                validPois.forEach(poi => {
+                    if (Array.isArray(poi.location)) {
+                        poi.location = new AMap.LngLat(poi.location[0], poi.location[1]);
+                    } else if (typeof poi.location === 'object' && !(poi.location instanceof AMap.LngLat)) {
+                        poi.location = new AMap.LngLat(poi.location.lng, poi.location.lat);
+                    }
+                });
+
+                console.log('发送请求数据:', validPois); // 添加调试日志
+
+                const response = await fetch('/calculate_route', {
+                    method: 'POST',
+                    headers: {
+                        'Content-Type': 'application/json',
+                    },
+                    body: JSON.stringify({ pois: validPois })
+                });
+
+                if (!response.ok) {
+                    throw new Error(`服务器响应错误: ${response.status} ${response.statusText}`);
+                }
+
+                const data = await response.json();
+                console.log('收到服务器响应:', data); // 添加调试日志
+                
+                if (!data.success) {
+                    throw new Error(data.error || '计算路径失败：服务器返回错误');
+                }
+
+                if (!data.route || !Array.isArray(data.route) || data.route.length === 0) {
+                    throw new Error('返回的路径数据无效：服务器返回的路径数据格式不正确');
+                }
+
+                // 确保返回的路径数据中的location是AMap.LngLat对象
+                data.route.forEach(point => {
+                    if (Array.isArray(point.location)) {
+                        point.location = new AMap.LngLat(point.location[0], point.location[1]);
+                    } else if (typeof point.location === 'object' && !(point.location instanceof AMap.LngLat)) {
+                        point.location = new AMap.LngLat(point.location.lng, point.location.lat);
+                    }
+                });
+
+                displayRoute(data.route);
+                displayRouteOnMap(data.route);
+            } catch (error) {
+                console.error('计算路径失败:', error);
+                routePath.innerHTML = `
+                    <div class="error">
+                        <h4>计算路径失败</h4>
+                        <p>${error.message}</p>
+                        <p>请检查：</p>
+                        <ul>
+                            <li>所有景点是否包含有效的坐标信息</li>
+                            <li>网络连接是否正常</li>
+                            <li>服务器是否正常运行</li>
+                        </ul>
+                    </div>
+                `;
+            }
         }
 
         // 页面加载事件

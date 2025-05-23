@@ -240,17 +240,21 @@ class Graph:
                 else:
                     distance = properties['distance']
                 
-                # 如果没有时间属性，根据距离估算时间（假设步行速度5km/h）
-                if 'time' not in properties:
-                    time = distance / (5000/60)  # 将米转换为分钟
+                # 获取交通方式和时间信息
+                times = {}
+                if 'times' in properties:
+                    times = properties['times']
                 else:
-                    time = properties['time']
+                    # 如果没有交通方式信息，生成默认的步行时间
+                    times = {
+                        '步行': distance / (5000/60)  # 步行速度5km/h
+                    }
                 
                 edges.append({
                     'from': source_id,
                     'to': target_id,
                     'distance': distance,
-                    'time': time,
+                    'times': times,
                     'source': self.points[source_id],
                     'target': self.points[target_id]
                 })

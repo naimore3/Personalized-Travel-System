@@ -46,8 +46,22 @@ def plan_route(pois: List[Dict], edges: List[Dict], mode: str = 'distance') -> L
         all_ids.add(edge['to'])
     graph = {nid: {} for nid in all_ids}
     for edge in edges:
-        graph[edge['from']][edge['to']] = {'distance': edge['distance'], 'time': edge['time']}
-        graph[edge['to']][edge['from']] = {'distance': edge['distance'], 'time': edge['time']}
+        # 获取最短时间作为边的权重
+        times = edge.get('times', {})
+        min_time = float('inf')
+        for time in times.values():
+            min_time = min(min_time, time)
+        if min_time == float('inf'):
+            min_time = edge['distance'] / (5000/60)  # 默认步行时间
+        
+        graph[edge['from']][edge['to']] = {
+            'distance': edge['distance'],
+            'time': min_time
+        }
+        graph[edge['to']][edge['from']] = {
+            'distance': edge['distance'],
+            'time': min_time
+        }
 
     # 构建所有点的信息映射
     all_points_info = {}
@@ -145,10 +159,35 @@ def plan_route(pois: List[Dict], edges: List[Dict], mode: str = 'distance') -> L
         # 添加距离和时间信息
         if i < len(full_path) - 1:
             next_pid = full_path[i + 1]
-            if (pid, next_pid) in shortest:
-                info['distance'] = shortest[(pid, next_pid)]
-                # 估算时间（假设步行速度5km/h）
-                info['time'] = info['distance'] / (5000/60)
+            # 查找对应的边
+            edge_found = False
+            for edge in edges:
+                if (edge['from'] == pid and edge['to'] == next_pid) or \
+                   (edge['from'] == next_pid and edge['to'] == pid):
+                    # 找到对应的边，添加其属性
+                    info['edge'] = {
+                        'properties': {
+                            'distance': edge['distance'],
+                            'times': edge.get('times', {
+                                '步行': edge['distance'] / (5000/60)  # 默认步行时间
+                            })
+                        }
+                    }
+                    edge_found = True
+                    break
+            
+            if not edge_found:
+                # 如果没有找到对应的边，使用最短路径信息
+                if (pid, next_pid) in shortest:
+                    distance = shortest[(pid, next_pid)]
+                    info['edge'] = {
+                        'properties': {
+                            'distance': distance,
+                            'times': {
+                                '步行': distance / (5000/60)  # 默认步行时间
+                            }
+                        }
+                    }
 
         result.append(info)
 
