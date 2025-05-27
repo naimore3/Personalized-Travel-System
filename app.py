@@ -330,11 +330,14 @@ def calculate_route():
         # 获取所有POI点
         pois = data['pois']
         
+        # 获取规划模式
+        mode = data.get('mode', 'distance')  # 默认为最短距离模式
+        
         # 获取图的所有边
         edges = graph.get_all_edges()
         
         # 使用动态规划算法计算最优路径
-        route = plan_route(pois, edges, mode='distance')
+        route = plan_route(pois, edges, mode=mode)
         
         return jsonify({
             'success': True,

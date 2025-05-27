@@ -4,6 +4,10 @@ import heapq
 def dijkstra_full(graph: Dict[int, Dict[int, Dict]], start: int, mode: str) -> Tuple[Dict[int, float], Dict[int, int]]:
     """
     Dijkstra算法，返回所有点的最短距离和前驱。
+    :param graph: 图结构
+    :param start: 起始点
+    :param mode: 'distance' 或 'time'，表示使用距离还是时间作为权重
+    :return: (距离字典, 前驱字典)
     """
     dist = {node: float('inf') for node in graph}
     prev = {node: None for node in graph}
@@ -34,7 +38,7 @@ def plan_route(pois: List[Dict], edges: List[Dict], mode: str = 'distance') -> L
     起点和终点必须相同（回路）。
     :param pois: [{'id': int, ...}, ...] 必经点
     :param edges: [{'from': int, 'to': int, 'distance': float, 'time': float, 'source': Dict, 'target': Dict}, ...]
-    :param mode: 'distance' 或 'time'
+    :param mode: 'distance' 或 'time'，表示使用距离还是时间作为权重
     :return: 按顺序排列的POI列表，含is_via字段
     """
     if not pois:

@@ -24,6 +24,32 @@
             box-shadow: 0 2px 4px rgba(0,0,0,0.1);
             z-index: 1;
         }
+        .mode-buttons {
+            display: flex;
+            width: 100%;
+            gap: 10px;
+            padding: 0 20px 20px 20px;
+            background-color: #fff;
+        }
+        .mode-button {
+            flex: 1;
+            padding: 12px 20px;
+            border: none;
+            border-radius: 8px;
+            font-size: 16px;
+            font-weight: 500;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            background-color: #f0f0f0;
+            color: #666;
+        }
+        .mode-button.active {
+            background-color: #1890ff;
+            color: white;
+        }
+        .mode-button:hover {
+            opacity: 0.9;
+        }
         .route-content {
             flex: 1;
             display: flex;
@@ -187,6 +213,10 @@
 </head>
 <body>
     <div class="route-container">
+        <div class="mode-buttons">
+            <button class="mode-button" onclick="changeMode('distance')" id="distanceBtn">最短距离</button>
+            <button class="mode-button" onclick="changeMode('time')" id="timeBtn">最短时间</button>
+        </div>
         <div class="route-content">
             <div id="mapContainer"></div>
             <div class="route-details">
@@ -212,6 +242,21 @@
         let map = null;
         let markers = [];
         let polyline = null;
+        let currentMode = 'distance'; // 默认选择最短距离
+
+        // 切换模式函数
+        function changeMode(mode) {
+            currentMode = mode;
+            // 更新按钮状态
+            document.getElementById('distanceBtn').classList.toggle('active', mode === 'distance');
+            document.getElementById('timeBtn').classList.toggle('active', mode === 'time');
+            
+            // 重新计算路径
+            const params = getUrlParams();
+            if (params.selected) {
+                calculateRoute(params.selected, mode);
+            }
+        }
 
         // 初始化地图
         function initMap() {
@@ -541,7 +586,7 @@
             }
 
             if (pois.length > 0) {
-                calculateRoute(pois);
+                calculateRoute(pois, currentMode);
             }
         }
 
@@ -707,7 +752,7 @@
         }
 
         // 计算最优路径
-        async function calculateRoute(pois) {
+        async function calculateRoute(pois, mode = currentMode) {
             const routePath = document.getElementById('routePath');
             routePath.innerHTML = '<div class="loading">正在计算最优路径...</div>';
 
@@ -743,7 +788,10 @@
                     headers: {
                         'Content-Type': 'application/json',
                     },
-                    body: JSON.stringify({ pois: validPois })
+                    body: JSON.stringify({ 
+                        pois: validPois,
+                        mode: mode 
+                    })
                 });
 
                 if (!response.ok) {
@@ -793,6 +841,8 @@
         window.onload = function() {
             initMap();
             displaySelectedPlaces();
+            // 设置默认按钮状态
+            document.getElementById('distanceBtn').classList.add('active');
         };
 
         // 窗口大小改变事件
