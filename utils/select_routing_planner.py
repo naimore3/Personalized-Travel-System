@@ -31,6 +31,7 @@ def reconstruct_path(prev: Dict[int, int], end: int) -> List[int]:
 def plan_route(pois: List[Dict], edges: List[Dict], mode: str = 'distance') -> List[Dict]:
     """
     规划经过所有必经点的最短路径，自动补全中间途径点。
+    起点和终点必须相同（回路）。
     :param pois: [{'id': int, ...}, ...] 必经点
     :param edges: [{'from': int, 'to': int, 'distance': float, 'time': float, 'source': Dict, 'target': Dict}, ...]
     :param mode: 'distance' 或 'time'
@@ -38,6 +39,11 @@ def plan_route(pois: List[Dict], edges: List[Dict], mode: str = 'distance') -> L
     """
     if not pois:
         return []
+
+    # 保证起点和终点一致（回路）
+    pois = list(pois)  # 拷贝，避免副作用
+    if len(pois) > 1 and pois[0]['id'] != pois[-1]['id']:
+        pois.append(pois[0])
 
     # 构建图
     all_ids = set()
@@ -102,30 +108,31 @@ def plan_route(pois: List[Dict], edges: List[Dict], mode: str = 'distance') -> L
                 shortest[(i, j)] = dist[j]
                 paths[(i, j)] = reconstruct_path(prev, j)
 
-    # 2. 近似TSP：贪心法，起点为must_ids[0]
+    # 2. 近似TSP：回路，起点为must_ids[0]，终点也为must_ids[0]
     from itertools import permutations
-    if len(must_ids) <= 8:
-        # 枚举所有排列，选最短
+    n = len(must_ids)
+    if n <= 9 and n > 2:
+        # 枚举所有排列，选最短回路
         min_order = None
         min_len = float('inf')
-        for order in permutations(must_ids[1:]):
-            seq = [must_ids[0]] + list(order)
+        for order in permutations(must_ids[1:-1]):  # 除去首尾（首尾相同）
+            seq = [must_ids[0]] + list(order) + [must_ids[0]]
             total = sum(shortest[(seq[i], seq[i+1])] for i in range(len(seq)-1))
             if total < min_len:
                 min_len = total
                 min_order = seq
         best_order = min_order
     else:
-        # 贪心：每次选最近的未访问点
-        unvisited = set(must_ids)
+        # 贪心：每次选最近的未访问点，最后回到起点
+        unvisited = set(must_ids[1:-1])  # 除去首尾
         curr = must_ids[0]
         best_order = [curr]
-        unvisited.remove(curr)
         while unvisited:
             next_id = min(unvisited, key=lambda nid: shortest[(curr, nid)])
             best_order.append(next_id)
             curr = next_id
             unvisited.remove(curr)
+        best_order.append(must_ids[0])  # 回到起点
 
     # 3. 拼接所有段，补全中间点
     full_path = []

@@ -187,7 +187,6 @@
                 <!-- 修改规划路径按钮区域 -->
                 <div class="route-buttons">
                     <button class="btn btn-primary" onclick="showRoutePlanner()">选择规划游览路径</button>
-                    <button class="btn btn-success" onclick="showAutoRoutePlanner()">自动规划游览路径</button>
                 </div>
             </div>
             
@@ -649,31 +648,6 @@
             if (event.target === modal) {
                 modal.style.display = 'none';
             }
-        }
-
-        // 添加自动规划路径的函数
-        function showAutoRoutePlanner() {
-            if (places.length === 0) {
-                alert('请先搜索景点');
-                return;
-            }
-            
-            // 获取第一个景点作为起点
-            const firstPOI = Array.from(selectedPOIs)[0];
-            if (!firstPOI) {
-                alert('请先搜索并选择景点');
-                return;
-            }
-
-            const routeFrame = document.getElementById('routeFrame');
-            routeFrame.src = '/route_planner?auto=true&start=' + encodeURIComponent(JSON.stringify({
-                id: firstPOI.id,
-                name: firstPOI.name,
-                location: firstPOI.location,
-                address: firstPOI.address
-            }));
-            
-            document.getElementById('routeModal').style.display = 'block';
         }
     </script>
 </body>

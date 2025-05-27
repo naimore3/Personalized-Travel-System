@@ -470,12 +470,9 @@
         function getUrlParams() {
             const params = new URLSearchParams(window.location.search);
             const selected = params.get('selected');
-            const auto = params.get('auto');
-            const start = params.get('start');
             
             try {
                 let parsedSelected = null;
-                let parsedStart = null;
 
                 if (selected) {
                     parsedSelected = JSON.parse(decodeURIComponent(selected));
@@ -486,21 +483,13 @@
                     }
                 }
 
-                if (start) {
-                    parsedStart = JSON.parse(decodeURIComponent(start));
-                }
-
                 return {
-                    selected: parsedSelected,
-                    auto: auto === 'true',
-                    start: parsedStart
+                    selected: parsedSelected
                 };
             } catch (error) {
                 console.error('解析URL参数失败:', error);
                 return {
-                    selected: null,
-                    auto: false,
-                    start: null
+                    selected: null
                 };
             }
         }
@@ -510,34 +499,13 @@
             const params = getUrlParams();
             const container = document.getElementById('selectedPlaces');
             
-            if (!params.selected && !params.auto) {
+            if (!params.selected) {
                 container.innerHTML = '<p>未选择任何景点</p>';
                 return;
             }
 
             let pois = [];
-            if (params.auto && params.start) {
-                // 验证起点数据
-                if (!isValidPoi(params.start)) {
-                    container.innerHTML = `
-                        <div class="error">
-                            <h4>起点数据无效</h4>
-                            <p>原始数据: ${JSON.stringify(params.start)}</p>
-                            <p>请确保包含有效的名称、地址和坐标信息</p>
-                        </div>
-                    `;
-                    return;
-                }
-                container.innerHTML = `
-                    <h3>自动规划路径</h3>
-                    <div class="place-item">
-                        <h4>起点：${params.start.name}</h4>
-                        <p>地址：${params.start.address}</p>
-                        <p>坐标：${params.start.location.lng}, ${params.start.location.lat}</p>
-                    </div>
-                `;
-                pois = [params.start];
-            } else if (params.selected) {
+            if (params.selected) {
                 // 验证选中的景点数据
                 const validPois = params.selected.filter(poi => {
                     const isValid = isValidPoi(poi);
