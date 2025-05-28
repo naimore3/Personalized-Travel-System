@@ -270,8 +270,13 @@
                         if (status === 'complete' && result && result.poiList && result.poiList.pois) {
                             resolve(result);
                         } else {
-                            console.log(`搜索第${page}页失败:`, status, result);
-                            resolve({ poiList: { pois: [] } }); // 返回空结果而不是reject
+                            // 检查高德API限流错误
+                            if (result && (result.info === 'CUQPS_HAS_EXCEEDED_THE_LIMIT' || (result.message && result.message.includes('CUQPS_HAS_EXCEEDED_THE_LIMIT')))) {
+                                reject(new Error('搜索失败'));
+                            } else {
+                                console.log(`搜索第${page}页失败:`, status, result);
+                                resolve({ poiList: { pois: [] } }); // 返回空结果而不是reject
+                            }
                         }
                     });
                 } catch (error) {
@@ -301,7 +306,7 @@
                 // 首先获取第一页结果，找到第一个点
                 const firstPageResult = await searchPage(selectedPlace, 1);
                 if (!firstPageResult || !firstPageResult.poiList || !firstPageResult.poiList.pois || firstPageResult.poiList.pois.length === 0) {
-                    throw new Error('未找到景点');
+                    throw new Error('景区景点较少');
                 }
 
                 const firstPOI = firstPageResult.poiList.pois[0];
@@ -328,10 +333,22 @@
                 let consecutiveEmptyPages = 0;
                 const MAX_CONSECUTIVE_EMPTY = 2; // 连续空页面的最大数量
 
+                // 增加延迟函数，防止QPS超限
+                function sleep(ms) {
+                    return new Promise(resolve => setTimeout(resolve, ms));
+                }
+
                 while (filteredPOIs.length < 100 && consecutiveEmptyPages < MAX_CONSECUTIVE_EMPTY) {
                     page++;
-                    const result = await searchPage(selectedPlace, page);
-                    
+                    await sleep(400); // 每次请求间隔400ms，降低被限流概率
+                    let result;
+                    try {
+                        result = await searchPage(selectedPlace, page);
+                    } catch (err) {
+                        // 捕获到“搜索失败”
+                        throw new Error('搜索失败');
+                    }
+
                     if (!result || !result.poiList || !result.poiList.pois || result.poiList.pois.length === 0) {
                         consecutiveEmptyPages++;
                         continue;
@@ -353,7 +370,51 @@
                 }
 
                 if (filteredPOIs.length === 0) {
-                    throw new Error('未找到符合条件的景点');
+                    throw new Error('景区景点较少');
+                }
+
+                // 如果数量不足100，补充3km范围内的POI
+                if (filteredPOIs.length < 100) {
+                    // 使用高德API的searchNearBy方法
+                    const center = [firstLocation.lng, firstLocation.lat];
+                    // 新建一个PlaceSearch实例，避免污染主实例
+                    const nearbySearch = new AMap.PlaceSearch({
+                        pageSize: 25,
+                        pageIndex: 1,
+                        city: "全国",
+                        citylimit: false,
+                        map: null, // 不在地图上显示
+                        showCover: false,
+                        showMarker: false
+                    });
+                    let nearbyPage = 1;
+                    let hasMoreNearby = true;
+                    const seenIds = new Set(filteredPOIs.map(p => p.id));
+                    while (filteredPOIs.length < 100 && hasMoreNearby) {
+                        await new Promise(resolve => setTimeout(resolve, 400));
+                        await new Promise((resolve) => {
+                            nearbySearch.setPageIndex(nearbyPage);
+                            nearbySearch.searchNearBy('', center, 3000, function(status, result) {
+                                if (status === 'complete' && result && result.poiList && result.poiList.pois && result.poiList.pois.length > 0) {
+                                    // 过滤掉已存在的POI
+                                    const newNearby = result.poiList.pois.filter(poi => !seenIds.has(poi.id));
+                                    newNearby.forEach(poi => seenIds.add(poi.id));
+                                    filteredPOIs.push(...newNearby);
+                                    if (filteredPOIs.length >= 100) {
+                                        filteredPOIs.length = 100;
+                                        hasMoreNearby = false;
+                                    } else if (result.poiList.pois.length < 25) {
+                                        hasMoreNearby = false;
+                                    } else {
+                                        nearbyPage++;
+                                    }
+                                } else {
+                                    hasMoreNearby = false;
+                                }
+                                resolve();
+                            });
+                        });
+                    }
                 }
 
                 // 生成图连接
@@ -365,8 +426,9 @@
                 // 显示所有搜索结果
                 displayPOIs(filteredPOIs);
             } catch (error) {
+                let reason = error.message === '景区景点较少' ? '景区景点较少' : '搜索失败';
+                document.getElementById('poiList').innerHTML = `<div class="loading">${reason}</div>`;
                 console.error('搜索失败:', error);
-                document.getElementById('poiList').innerHTML = `<div class="loading">搜索失败: ${error.message}</div>`;
             }
         }
 
