@@ -90,41 +90,45 @@ class EdgePropertiesGenerator:
         Returns:
             Dict: 包含距离、交通方式、时间、权重和拥挤度的字典
         """
-        # 计算两点之间的距离
-        distance = EdgePropertiesGenerator.calculate_distance(
-            point1['location'], 
-            point2['location']
-        )
-        
-        # 生成拥挤度（0.5-1.0之间的随机数）
-        congestion = round(random.uniform(0.5, 1.0), 2)
-        
-        # 确定可用的交通方式
-        available_modes = []
-        available_modes.append(TransportMode.WALKING)
-        
-        # 根据距离决定是否支持其他交通方式
-        if random.random() < 0.7 and distance <= 5000:  # 5公里内70%概率支持骑行
-            available_modes.append(TransportMode.CYCLING)
-        if random.random() < 0.3:  # 30%概率支持驾车
-            available_modes.append(TransportMode.DRIVING)
-        
-        # 为每种交通方式计算时间
-        travel_times = {}
-        weights = {}
-        for mode in available_modes:
-            time = EdgePropertiesGenerator.calculate_travel_time(distance, mode, congestion)
-            chinese_mode = TRANSPORT_MODE_CHINESE[mode.value]
-            travel_times[chinese_mode] = time
-            weights[chinese_mode] = time
-        
-        return {
-            'distance': distance,  # 单位：米
-            'congestion': congestion,  # 拥挤度（0.5-1.0）
-            'modes': [TRANSPORT_MODE_CHINESE[mode.value] for mode in available_modes],
-            'times': travel_times,
-            'weights': weights
-        }
+        try:
+            # 计算两点之间的距离
+            distance = EdgePropertiesGenerator.calculate_distance(
+                point1['location'], 
+                point2['location']
+            )
+            
+            # 生成拥挤度（0.5-1.0之间的随机数）
+            congestion = round(random.uniform(0.5, 1.0), 2)
+            
+            # 确定可用的交通方式
+            available_modes = []
+            available_modes.append(TransportMode.WALKING)
+            
+            # 根据距离决定是否支持其他交通方式
+            if random.random() < 0.7 and distance <= 5000:  # 5公里内70%概率支持骑行
+                available_modes.append(TransportMode.CYCLING)
+            if random.random() < 0.3:  # 30%概率支持驾车
+                available_modes.append(TransportMode.DRIVING)
+            
+            # 为每种交通方式计算时间
+            travel_times = {}
+            weights = {}
+            for mode in available_modes:
+                time = EdgePropertiesGenerator.calculate_travel_time(distance, mode, congestion)
+                chinese_mode = TRANSPORT_MODE_CHINESE[mode.value]
+                travel_times[chinese_mode] = time
+                weights[chinese_mode] = time
+            
+            return {
+                'distance': distance,  # 单位：米
+                'congestion': congestion,  # 拥挤度（0.5-1.0）
+                'modes': [TRANSPORT_MODE_CHINESE[mode.value] for mode in available_modes],
+                'times': travel_times,
+                'weights': weights
+            }
+        except Exception as e:
+            print(f"错误：生成边属性失败: {str(e)}")
+            raise e
 
 class EdgeProperties:
     def __init__(self):

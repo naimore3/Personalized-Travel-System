@@ -77,23 +77,19 @@ class Graph:
                                 closest_pair = (node1_id, node2_id)
             
             return closest_pair
-
-        print("开始检查连通性...")
         
         while True:
             # 获取当前的所有连通分量
             components = get_connected_components()
-            print(f"当前连通分量数量: {len(components)}")
             
             # 如果只有一个连通分量，说明图已经连通
             if len(components) == 1:
-                print("图已完全连通")
                 break
             
             # 找到最近的两个连通分量
             closest_pair = find_closest_components(components)
             if not closest_pair:
-                print("无法找到可连接的连通分量")
+                print("错误：无法找到可连接的连通分量")
                 break
             
             # 连接最近的两个节点
@@ -112,15 +108,11 @@ class Graph:
                 'target': self.points[node2_id],
                 'properties': properties
             }
-            
-            print(f"添加新边连接节点 {node1_id} 和 {node2_id}，距离: {self.calculate_distance(self.points[node1_id], self.points[node2_id])}米")
         
         # 最终检查
         final_components = get_connected_components()
-        if len(final_components) == 1:
-            print("最终检查：图完全连通")
-        else:
-            print(f"最终检查：图仍然存在 {len(final_components)} 个不连通的子图")
+        if len(final_components) != 1:
+            print(f"错误：图仍然存在 {len(final_components)} 个不连通的子图")
 
     def add_points(self, points):
         """添加点并建立连接关系"""
@@ -154,7 +146,7 @@ class Graph:
                     'address': point.get('address', '')
                 }
 
-            # 为每个点找到最近的两个点
+            # 为每个点找到最近的三个点
             for point_id, point in self.points.items():
                 distances = []
                 for other_id, other_point in self.points.items():
@@ -163,14 +155,14 @@ class Graph:
                             distance = self.calculate_distance(point, other_point)
                             distances.append((other_id, distance))
                         except Exception as e:
-                            print(f"Error calculating distance between {point_id} and {other_id}: {str(e)}")
+                            print(f"错误：计算距离失败 {point_id} 和 {other_id}: {str(e)}")
                             continue
                 
                 # 按距离排序
                 distances.sort(key=lambda x: x[1])
                 
-                # 连接最近的两个点
-                for other_id, distance in distances[:2]:
+                # 连接最近的三个点
+                for other_id, distance in distances[:3]:
                     edge_id = tuple(sorted([point_id, other_id]))
                     if edge_id not in self.edges:
                         try:
@@ -186,18 +178,19 @@ class Graph:
                                 'properties': properties
                             }
                         except Exception as e:
-                            print(f"Error creating edge between {point_id} and {other_id}: {str(e)}")
+                            print(f"错误：创建边失败 {point_id} 和 {other_id}: {str(e)}")
                             continue
 
             # 检查图的连通性
             try:
                 self._ensure_connectivity()
             except Exception as e:
-                print(f"Error ensuring connectivity: {str(e)}")
+                print(f"错误：确保连通性失败: {str(e)}")
 
+            print(f"图建立完成：点数={len(self.points)}，边数={len(self.edges)}")
             return self.get_connections()
         except Exception as e:
-            print("Error in add_points:", str(e))
+            print("错误：添加点失败:", str(e))
             import traceback
             traceback.print_exc()
             raise e

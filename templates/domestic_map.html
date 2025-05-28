@@ -475,7 +475,6 @@
 
         // 获取交通方式的颜色
         function getTransportColor(modes) {
-            console.log('Original modes:', modes);
             
             if (!Array.isArray(modes)) {
                 console.error('Invalid modes (not an array):', modes);
@@ -487,16 +486,12 @@
                 .filter(mode => typeof mode === 'string')
                 .map(mode => mode.trim());
                 
-            console.log('Valid modes after filtering:', validModes);
-            
             if (validModes.length === 0) {
                 console.error('No valid modes found after filtering');
                 return '#666666';
             }
             
             const sortedModes = validModes.sort().join(',');
-            console.log('Sorted modes:', sortedModes);
-            console.log('Available color keys:', Object.keys(TRANSPORT_COLORS));
             
             // 检查是否完全匹配
             let color = TRANSPORT_COLORS[sortedModes];
@@ -517,7 +512,6 @@
                 return '#666666';
             }
             
-            console.log('Selected color:', color);
             return color;
         }
 
@@ -562,7 +556,6 @@
                     if (data.edges) {
                         console.log('All edges:', data.edges);
                         data.edges.forEach(edge => {
-                            console.log('Processing edge:', edge);
                             
                             // 检查点的位置信息是否存在
                             if (!edge.source || !edge.source.location || !edge.target || !edge.target.location) {
@@ -572,7 +565,6 @@
 
                             // 获取该连接支持的交通方式的颜色
                             const color = getTransportColor(edge.properties.modes);
-                            console.log('Selected color for modes', edge.properties.modes, ':', color);
                             
                             // 创建连线
                             var line = new AMap.Polyline({
@@ -690,4 +682,4 @@
     </script>
 </body>
 
-</html> 
+</html>

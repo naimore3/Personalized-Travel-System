@@ -131,9 +131,6 @@ def update_graph():
         if not data or 'pois' not in data:
             return jsonify({'error': 'No POI data provided'}), 400
         
-        # 打印接收到的数据，用于调试
-        print("Received POI data:", data['pois'])
-        
         # 检查数据格式
         for poi in data['pois']:
             if not all(key in poi for key in ['id', 'location', 'name']):
@@ -148,7 +145,6 @@ def update_graph():
         # 使用图处理类处理连接关系
         try:
             connections = graph.add_points(data['pois'])
-            print("Generated connections:", connections)
             return jsonify({
                 'connections': connections
             })
@@ -282,7 +278,7 @@ def update_map_graph():
             return jsonify({'error': 'No POI data provided'}), 400
         
         # 打印接收到的数据，用于调试
-        print("Received POIs:", data['pois'])
+        # print("Received POIs:", data['pois'])
         
         # 检查数据格式
         for poi in data['pois']:
@@ -298,7 +294,7 @@ def update_map_graph():
         # 使用图处理类处理连接关系
         try:
             connections = graph.add_points(data['pois'])
-            print("Generated connections:", connections)
+            # print("Generated connections:", connections)
             return jsonify(connections)
         except Exception as e:
             print("Error in graph.add_points:", str(e))
