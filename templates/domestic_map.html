@@ -469,18 +469,56 @@
             '步行': '#FF3366',                           // 玫红色：仅步行
             '步行,骑行': '#33FF66',                      // 亮绿色：步行+骑行
             '步行,驾车': '#3399FF',                      // 天蓝色：步行+驾车
-            '步行,骑行,驾车': '#FF9933'                  // 亮橙色：全部支持
+            '步行,骑行,驾车': '#FF9933',                 // 亮橙色：全部支持
+            '步行,驾车,骑行': '#FF9933'                  // 亮橙色：全部支持（不同顺序）
         };
 
         // 获取交通方式的颜色
         function getTransportColor(modes) {
+            console.log('Original modes:', modes);
+            
             if (!Array.isArray(modes)) {
-                console.error('Invalid modes:', modes);
+                console.error('Invalid modes (not an array):', modes);
                 return '#666666';
             }
             
-            const sortedModes = [...modes].sort().join(',');
-            return TRANSPORT_COLORS[sortedModes] || '#666666';
+            // 确保modes数组中的元素都是字符串，并去除可能的空格
+            const validModes = modes
+                .filter(mode => typeof mode === 'string')
+                .map(mode => mode.trim());
+                
+            console.log('Valid modes after filtering:', validModes);
+            
+            if (validModes.length === 0) {
+                console.error('No valid modes found after filtering');
+                return '#666666';
+            }
+            
+            const sortedModes = validModes.sort().join(',');
+            console.log('Sorted modes:', sortedModes);
+            console.log('Available color keys:', Object.keys(TRANSPORT_COLORS));
+            
+            // 检查是否完全匹配
+            let color = TRANSPORT_COLORS[sortedModes];
+            
+            // 如果没有找到完全匹配，尝试其他可能的组合
+            if (!color) {
+                // 检查是否包含所有三种交通方式
+                const hasAllModes = validModes.includes('步行') && 
+                                  validModes.includes('骑行') && 
+                                  validModes.includes('驾车');
+                if (hasAllModes) {
+                    color = '#FF9933'; // 使用全部支持的亮橙色
+                }
+            }
+            
+            if (!color) {
+                console.error('No color found for modes:', sortedModes);
+                return '#666666';
+            }
+            
+            console.log('Selected color:', color);
+            return color;
         }
 
         // 创建连线
