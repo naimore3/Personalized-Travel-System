@@ -243,18 +243,20 @@
         let markers = [];
         let polyline = null;
         let currentMode = 'distance'; // 默认选择最短距离
+        let lastSingleRoutePois = null; // 新增全局变量，用于保存单点导航的起终点
 
         // 切换模式函数
         function changeMode(mode) {
             currentMode = mode;
-            // 更新按钮状态
             document.getElementById('distanceBtn').classList.toggle('active', mode === 'distance');
             document.getElementById('timeBtn').classList.toggle('active', mode === 'time');
-            
-            // 重新计算路径
-            const params = getUrlParams();
-            if (params.selected) {
-                calculateRoute(params.selected, mode);
+            if (lastSingleRoutePois) {
+                calculateRoute(lastSingleRoutePois, mode);
+            } else {
+                const params = getUrlParams();
+                if (params.selected) {
+                    calculateRoute(params.selected, mode);
+                }
             }
         }
 
@@ -837,11 +839,60 @@
             }
         }
 
+        // route_planner 页面需要根据 localStorage 判断是单点还是多点规划
+        // 你需要在 route_planner.html 的 JS 中添加如下逻辑：
+        // 如果 localStorage.getItem('route_plan_mode') === 'single'，则读取 start/end，调用 select_routing_planner 只传递这两个点
+        // 否则按原有多点逻辑
+        // 下面为建议代码片段，可直接插入 route_planner.html 的 <script> 部分：
+        /*
+        document.addEventListener('DOMContentLoaded', function() {
+            if (localStorage.getItem('route_plan_mode') === 'single') {
+                const start = JSON.parse(localStorage.getItem('route_plan_start'));
+                const end = JSON.parse(localStorage.getItem('route_plan_end'));
+                // 调用 select_routing_planner 只传递 [start, end]，并渲染
+                fetch('/plan_route', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ pois: [start, end] })
+                })
+                .then(res => res.json())
+                .then(data => {
+                    // 渲染路径
+                });
+                // 用完清理
+                localStorage.removeItem('route_plan_mode');
+                localStorage.removeItem('route_plan_start');
+                localStorage.removeItem('route_plan_end');
+            } else {
+                // 原有多点规划逻辑
+            }
+        });
+        */
+
         // 页面加载事件
         window.onload = function() {
             initMap();
-            displaySelectedPlaces();
-            // 设置默认按钮状态
+            // 优先处理“到这里去”单点导航
+            if (localStorage.getItem('route_plan_mode') === 'single') {
+                const start = JSON.parse(localStorage.getItem('route_plan_start'));
+                const end = JSON.parse(localStorage.getItem('route_plan_end'));
+                if (start && end) {
+                    lastSingleRoutePois = [start, end];
+                    const container = document.getElementById('selectedPlaces');
+                    container.innerHTML = `
+                        <h3>单点导航</h3>
+                        <div class="place-item"><h4>起点</h4><p>名称：${start.name}</p><p>地址：${start.address}</p></div>
+                        <div class="place-item"><h4>终点</h4><p>名称：${end.name}</p><p>地址：${end.address}</p></div>
+                    `;
+                    calculateRoute(lastSingleRoutePois, currentMode);
+                }
+                localStorage.removeItem('route_plan_mode');
+                localStorage.removeItem('route_plan_start');
+                localStorage.removeItem('route_plan_end');
+            } else {
+                lastSingleRoutePois = null;
+                displaySelectedPlaces();
+            }
             document.getElementById('distanceBtn').classList.add('active');
         };
 
@@ -859,4 +910,4 @@
         });
     </script>
 </body>
-</html> 
+</html>

@@ -44,6 +44,86 @@ def plan_route(pois: List[Dict], edges: List[Dict], mode: str = 'distance') -> L
     if not pois:
         return []
 
+    # 单向模式：仅两个点且不是回路
+    if len(pois) == 2 and pois[0]['id'] != pois[1]['id']:
+        # 构建图
+        all_ids = set()
+        for edge in edges:
+            all_ids.add(edge['from'])
+            all_ids.add(edge['to'])
+        graph = {nid: {} for nid in all_ids}
+        for edge in edges:
+            times = edge.get('times', {})
+            min_time = float('inf')
+            for time in times.values():
+                min_time = min(min_time, time)
+            if min_time == float('inf'):
+                min_time = edge['distance'] / (5000/60)
+            graph[edge['from']][edge['to']] = {
+                'distance': edge['distance'],
+                'time': min_time
+            }
+            graph[edge['to']][edge['from']] = {
+                'distance': edge['distance'],
+                'time': min_time
+            }
+        start_id = pois[0]['id']
+        end_id = pois[1]['id']
+        dist, prev = dijkstra_full(graph, start_id, mode)
+        path_ids = reconstruct_path(prev, end_id)
+        # 补全点信息
+        id2poi = {poi['id']: poi for poi in pois}
+        all_points_info = {}
+        for poi in pois:
+            all_points_info[poi['id']] = poi
+        for edge in edges:
+            if edge['from'] not in all_points_info and 'source' in edge:
+                all_points_info[edge['from']] = {
+                    'id': edge['from'],
+                    'name': edge['source'].get('name', f'途经点 {edge["from"]}'),
+                    'address': edge['source'].get('address', '自动生成的途经点'),
+                    'location': edge['source'].get('location', {'lng': 0, 'lat': 0})
+                }
+            if edge['to'] not in all_points_info and 'target' in edge:
+                all_points_info[edge['to']] = {
+                    'id': edge['to'],
+                    'name': edge['target'].get('name', f'途经点 {edge["to"]}'),
+                    'address': edge['target'].get('address', '自动生成的途经点'),
+                    'location': edge['target'].get('location', {'lng': 0, 'lat': 0})
+                }
+        result = []
+        for i, pid in enumerate(path_ids):
+            if pid in id2poi:
+                info = dict(id2poi[pid])
+                info['is_via'] = False
+            else:
+                info = dict(all_points_info.get(pid, {
+                    'id': pid,
+                    'name': f'途经点 {i+1}',
+                    'address': '自动生成的途经点',
+                    'location': {'lng': 0, 'lat': 0}
+                }))
+                info['is_via'] = True
+            if i < len(path_ids) - 1:
+                next_pid = path_ids[i + 1]
+                edge_found = False
+                for edge in edges:
+                    if (edge['from'] == pid and edge['to'] == next_pid) or (edge['from'] == next_pid and edge['to'] == pid):
+                        info['edge'] = {
+                            'properties': {
+                                'distance': edge['distance'],
+                                'times': edge.get('times', {
+                                    '步行': edge['distance'] / (5000/60)
+                                })
+                            }
+                        }
+                        edge_found = True
+                        break
+                if not edge_found:
+                    pass
+            result.append(info)
+        return result
+
     # 保证起点和终点一致（回路）
     pois = list(pois)  # 拷贝，避免副作用
     if len(pois) > 1 and pois[0]['id'] != pois[-1]['id']:

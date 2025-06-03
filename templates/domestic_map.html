@@ -184,7 +184,11 @@
                     <!-- 景点列表将在这里动态显示 -->
                 </div>
 
-                <!-- 修改规划路径按钮区域 -->
+                <!-- 新增“到这里去”按钮 -->
+                <div class="route-buttons" style="margin-bottom: 10px;">
+                    <button class="btn btn-success" id="goToHereBtn" onclick="goToHere()">到这里去</button>
+                </div>
+                <!-- 原有规划路径按钮区域 -->
                 <div class="route-buttons">
                     <button class="btn btn-primary" onclick="showRoutePlanner()">选择规划游览路径</button>
                 </div>
@@ -419,6 +423,8 @@
 
                 // 生成图连接
                 await createConnections(filteredPOIs);
+                // 保存全局
+                window.filteredPOIs = filteredPOIs;
 
                 // 清除搜索数据，但保留图结构
                 placeSearch.clear();
@@ -713,7 +719,9 @@
                 alert('请先选择至少一个景点');
                 return;
             }
-            
+            // 设置弹窗标题
+            document.querySelector('#routeModal h4').innerText = '选择规划路径';
+
             // 将选中的景点信息转换为数组
             const selectedPOIsArray = Array.from(selectedPOIs).map(poi => ({
                 id: poi.id,
@@ -740,6 +748,43 @@
             if (event.target === modal) {
                 modal.style.display = 'none';
             }
+        }
+
+        // 添加“到这里去”按钮的点击事件
+        function goToHere() {
+            if (!window.filteredPOIs || window.filteredPOIs.length === 0) {
+                alert('请先搜索景区并加载景点列表！');
+                return;
+            }
+            const selected = Array.from(selectedPOIs);
+            if (selected.length === 0) {
+                alert('请选择一个目的地！');
+                return;
+            }
+            if (selected.length > 1) {
+                alert('只能选择一个目的地！');
+                return;
+            }
+            const startPOI = window.filteredPOIs[0];
+            const endPOI = selected[0];
+            localStorage.setItem('route_plan_mode', 'single');
+            localStorage.setItem('route_plan_start', JSON.stringify({
+                id: startPOI.id,
+                name: startPOI.name,
+                address: startPOI.address,
+                location: startPOI.location
+            }));
+            localStorage.setItem('route_plan_end', JSON.stringify({
+                id: endPOI.id,
+                name: endPOI.name,
+                address: endPOI.address,
+                location: endPOI.location
+            }));
+            document.querySelector('#routeModal h4').innerText = '目的地导航';
+            // 强制刷新iframe，确保route_planner页面重新加载
+            const routeFrame = document.getElementById('routeFrame');
+            routeFrame.src = '/route_planner?t=' + Date.now();
+            document.getElementById('routeModal').style.display = 'block';
         }
     </script>
 </body>
