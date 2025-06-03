@@ -5,6 +5,7 @@ from utils.big_model import BigModel
 from utils.sorting_algorithm import get_top_ten_places  # 导入排序方法
 from utils.graph import Graph
 from utils.select_routing_planner import plan_route
+from utils.food_search import search_and_sort_foods, CUISINES
 import re
 
 app = Flask(__name__)
@@ -345,6 +346,29 @@ def calculate_route():
             'success': False,
             'error': str(e)
         }), 500
+
+@app.route('/indoor_navigation')
+def indoor_navigation():
+    return render_template('indoor_navigation.html')
+
+@app.route('/food_discovery')
+def food_discovery():
+    return render_template('food_discovery.html')
+
+@app.route('/food_search', methods=['GET'])
+def food_search():
+    # 获取前端参数
+    query = request.args.get('query', '', type=str)
+    cuisine = request.args.get('cuisine', '', type=str)
+    sort_key = request.args.get('sort', 'popularity', type=str)  # popularity, rating, distance
+    n = request.args.get('n', 10, type=int)
+    # 查询和排序
+    foods = search_and_sort_foods(query=query, cuisine=cuisine, sort_key=sort_key, n=n)
+    return jsonify({'foods': foods})
+
+@app.route('/get_cuisines', methods=['GET'])
+def get_cuisines():
+    return jsonify({'cuisines': CUISINES})
 
 if __name__ == '__main__':
     app.run(debug=True)
