@@ -1,0 +1,65 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>室内导航</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        body { background: #f8f9fa; }
+        .container-flex { display: flex; height: 90vh; }
+        .sidebar { width: 300px; background: #fff; padding: 20px; border-right: 1px solid #eee; display: flex; flex-direction: column; height: 100%; min-height: 0; }
+        .map-area { flex: 1; position: relative; background: #e9ecef; }
+        /* 修改楼层控件为右侧垂直居中 */
+        .floor-controls {
+            position: absolute;
+            right: 30px;
+            top: 50%;
+            transform: translateY(-50%);
+            width: 140px;
+            background: #fff;
+            border-radius: 12px;
+            box-shadow: 0 2px 12px #0002;
+            padding: 18px 10px 18px 10px;
+            text-align: center;
+            z-index: 10;
+        }
+        .facility { position: absolute; text-align: center; }
+        .facility img { width: 40px; height: 40px; }
+        .facility-label { font-size: 12px; margin-top: 2px; }
+        .floor-input { width: 48px; text-align: center; }
+    </style>
+</head>
+<body>
+    {% include 'navbar.html' %}
+    <div class="container-flex">
+        <div class="sidebar">
+            <h4>室内导航</h4>
+            <form id="search-form">
+                <div class="mb-3">
+                    <label>起点</label>
+                    <select id="start-floor" class="form-select mb-1"></select>
+                    <select id="start-place" class="form-select"></select>
+                </div>
+                <div class="mb-3">
+                    <label>终点</label>
+                    <select id="end-floor" class="form-select mb-1"></select>
+                    <select id="end-place" class="form-select"></select>
+                </div>
+                <button type="submit" class="btn btn-primary w-100">搜索路径</button>
+            </form>
+            <div id="navigation-steps" style="flex:1 1 auto;min-height:0;"></div>
+        </div>
+        <div class="map-area" id="map-area">
+            <div class="floor-controls" id="floor-controls">
+                <button id="prev-floor" class="btn btn-sm btn-outline-secondary mb-1">上一层</button><br>
+                <input type="number" id="floor-input" class="floor-input mb-1" min="1" max="100"><br>
+                <button id="next-floor" class="btn btn-sm btn-outline-secondary">下一层</button>
+                <div class="mt-2">楼层：<span id="current-floor"></span> / <span id="total-floors"></span></div>
+            </div>
+        </div>
+    </div>
+    <script src="{{ url_for('static', filename='js/indoor_navigation.js') }}"></script>
+</body>
+</html>

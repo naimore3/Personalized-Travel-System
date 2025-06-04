@@ -1,19 +1,49 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
-    <!-- 添加 viewport 元标签 -->
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>环球寻光记 - 首页</title>
+    <!-- 引入 Bootstrap CSS -->
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
 </head>
+
 <body>
-    <h1>欢迎来到环球寻光记</h1>
-    <nav>
-        <a href="{{ url_for('recommend') }}">推荐模块</a>
-        <a href="{{ url_for('map') }}">地图模块</a>
-        <a href="{{ url_for('punch') }}">打卡模块</a>
-        <a href="{{ url_for('search') }}">搜索模块</a>
-    </nav>
+    {% include 'navbar.html' %}
+
+    <!-- 主标题 -->
+    <div class="container my-5 text-center">
+        <h1 class="display-3">欢迎来到环球寻光记</h1>
+    </div>
+
+    <!-- 显示评分最高的前十个地点 -->
+    <div class="container">
+        <h2 class="text-center">推荐地点</h2>
+        <div class="row row-cols-1 row-cols-sm-2 row-cols-md-5 g-3">
+            {% for place in top_ten_places %}
+            <div class="col">
+                <div class="card shadow-sm">
+                    <!-- 使用默认图片，因为目前没有图片字段 -->
+                    <img src="{{ url_for('static', filename='images/default.jpg') }}" class="bd-placeholder-img card-img-top" alt="{{ place['Place_Name'] }}" width="100%" height="225">
+                    <div class="card-body">
+                        <h3 class="card-title"><a href="{{ url_for('details', place_id=place['ID']) }}">{{ place['Place_Name'] }}</a></h3>
+                        <p class="card-text">评分: {{ place['Rating'] }}</p>
+                        <div class="d-flex justify-content-between align-items-center">
+                            <div class="btn-group">
+                                <a href="{{ url_for('details', place_id=place['ID']) }}" class="btn btn-sm btn-outline-secondary">查看详情</a>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </div>
+            {% endfor %}
+        </div>
+    </div>
+
+    <!-- 引入 Bootstrap JS -->
+    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
 </body>
+
 </html>

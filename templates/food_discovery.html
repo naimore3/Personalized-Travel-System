@@ -1,0 +1,107 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>美食发现</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+</head>
+<body>
+    {% include 'navbar.html' %}
+    <div class="container my-5">
+        <h2 class="text-center">美食发现</h2>
+        <form class="row g-3 mb-4" id="food-search-form">
+            <div class="col-md-3">
+                <select class="form-select" id="place">
+                    <option value="">选择地点</option>
+                </select>
+            </div>
+            <div class="col-md-3">
+                <input type="text" class="form-control" id="query" placeholder="输入美食/菜系/餐馆名称">
+            </div>
+            <div class="col-md-2">
+                <select class="form-select" id="cuisine">
+                    <option value="">全部菜系</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <select class="form-select" id="sort">
+                    <option value="popularity">按热度排序</option>
+                    <option value="rating">按评价排序</option>
+                    <option value="distance">按距离排序</option>
+                </select>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-primary w-100">搜索</button>
+            </div>
+        </form>
+        <div id="food-list" class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4"></div>
+    </div>
+    <script>
+    // 动态加载菜系
+    axios.get('/get_cuisines').then(res => {
+        const cuisines = res.data.cuisines;
+        const select = document.getElementById('cuisine');
+        cuisines.forEach(c => {
+            const opt = document.createElement('option');
+            opt.value = c;
+            opt.textContent = c;
+            select.appendChild(opt);
+        });
+    });
+    // 动态加载地点
+    axios.get('/get_places').then(res => {
+        const places = res.data.places;
+        const select = document.getElementById('place');
+        places.forEach(p => {
+            const opt = document.createElement('option');
+            opt.value = p;
+            opt.textContent = p;
+            select.appendChild(opt);
+        });
+    });
+    // 搜索表单提交
+    document.getElementById('food-search-form').addEventListener('submit', function(e) {
+        e.preventDefault();
+        loadFoods();
+    });
+    // 页面加载默认展示
+    window.onload = loadFoods;
+    function loadFoods() {
+        const query = document.getElementById('query').value;
+        const cuisine = document.getElementById('cuisine').value;
+        const sort = document.getElementById('sort').value;
+        const place = document.getElementById('place').value;
+        axios.get('/food_search', {
+            params: { query, cuisine, sort, n: 200, place }
+        }).then(res => {
+            const foods = res.data.foods;
+            const list = document.getElementById('food-list');
+            list.innerHTML = '';
+            if (foods.length === 0) {
+                list.innerHTML = '<div class="col"><div class="alert alert-warning">未找到相关美食</div></div>';
+                return;
+            }
+            foods.forEach(food => {
+                list.innerHTML += `
+                <div class="col">
+                    <div class="card h-100">
+                        <div class="card-body">
+                            <h5 class="card-title">${food.name}</h5>
+                            <p class="card-text mb-1"><strong>菜系：</strong>${food.cuisine}</p>
+                            <p class="card-text mb-1"><strong>餐馆：</strong>${food.restaurant}</p>
+                            <p class="card-text mb-1"><strong>热度：</strong>${food.popularity}</p>
+                            <p class="card-text mb-1"><strong>评分：</strong>${food.rating}</p>
+                            <p class="card-text mb-1"><strong>距离：</strong>${food.distance} km</p>
+                            <p class="card-text mb-1"><strong>地点：</strong>${food.place}</p>
+                        </div>
+                    </div>
+                </div>`;
+            });
+        });
+    }
+    </script>
+</body>
+</html>

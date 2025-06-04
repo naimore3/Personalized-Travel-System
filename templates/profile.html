@@ -1,0 +1,113 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>个人信息 - {{ username }}</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <style>
+        .profile-container {
+            max-width: 800px;
+            margin: 0 auto;
+            padding: 20px;
+        }
+        .section {
+            margin-bottom: 30px;
+            background: #fff;
+            border-radius: 8px;
+            padding: 20px;
+            box-shadow: 0 2px 4px rgba(0,0,0,0.1);
+        }
+        .tag-list {
+            display: flex;
+            flex-wrap: wrap;
+            gap: 10px;
+        }
+        .tag-item {
+            background: #e9ecef;
+            padding: 5px 10px;
+            border-radius: 15px;
+            font-size: 0.9em;
+        }
+        .history-item {
+            padding: 10px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .history-item:last-child {
+            border-bottom: none;
+        }
+        .diary-item {
+            margin-bottom: 20px;
+            padding-bottom: 20px;
+            border-bottom: 1px solid #dee2e6;
+        }
+        .diary-item:last-child {
+            border-bottom: none;
+            margin-bottom: 0;
+            padding-bottom: 0;
+        }
+    </style>
+</head>
+
+<body>
+    {% include 'navbar.html' %}
+
+    <div class="container my-5">
+        <div class="profile-container">
+            <h1 class="mb-4">个人信息</h1>
+            
+            <!-- 用户标签部分 -->
+            <div class="section">
+                <h2 class="h4 mb-3">我的标签</h2>
+                <div class="tag-list">
+                    {% if user_tags %}
+                        {% for tag in user_tags %}
+                            <span class="tag-item">{{ tag }}</span>
+                        {% endfor %}
+                    {% else %}
+                        <p class="text-muted">暂无标签</p>
+                    {% endif %}
+                </div>
+            </div>
+
+            <!-- 浏览历史部分 -->
+            <div class="section">
+                <h2 class="h4 mb-3">浏览历史</h2>
+                {% if browse_history %}
+                    {% for history in browse_history %}
+                        <div class="history-item">
+                            <div class="d-flex justify-content-between align-items-center">
+                                <span>{{ history.place_name }}</span>
+                                <small class="text-muted">{{ history.view_time.strftime('%Y-%m-%d %H:%M') }}</small>
+                            </div>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">暂无浏览记录</p>
+                {% endif %}
+            </div>
+
+            <!-- 我的帖子部分 -->
+            <div class="section">
+                <h2 class="h4 mb-3">我的帖子</h2>
+                {% if user_diaries %}
+                    {% for diary in user_diaries %}
+                        <div class="diary-item">
+                            <h3 class="h5">{{ diary.title }}</h3>
+                            <p class="text-muted small">{{ diary.created_at.strftime('%Y-%m-%d %H:%M') }}</p>
+                            <p>{{ diary.content }}</p>
+                        </div>
+                    {% endfor %}
+                {% else %}
+                    <p class="text-muted">暂无帖子</p>
+                {% endif %}
+            </div>
+        </div>
+    </div>
+
+    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+</body>
+
+</html> 
