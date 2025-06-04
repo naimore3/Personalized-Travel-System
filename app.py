@@ -5,7 +5,7 @@ from utils.big_model import BigModel
 from utils.sorting_algorithm import get_top_ten_places  # 导入排序方法
 from utils.graph import Graph
 from utils.select_routing_planner import plan_route
-from utils.food_search import search_and_sort_foods, CUISINES
+from utils.food_search import search_and_sort_foods, CUISINES, get_all_places
 import re
 
 app = Flask(__name__)
@@ -244,7 +244,7 @@ def add_history():
         return jsonify({'success': True, 'message': '添加浏览记录成功'})
     return jsonify({'success': False, 'message': '添加浏览记录失败'}), 500
 
-@app.route('/get_places')
+@app.route('/get_places', methods=['GET'])
 def get_places():
     """获取所有地点列表"""
     try:
@@ -362,8 +362,9 @@ def food_search():
     cuisine = request.args.get('cuisine', '', type=str)
     sort_key = request.args.get('sort', 'popularity', type=str)  # popularity, rating, distance
     n = request.args.get('n', 10, type=int)
+    place = request.args.get('place', '', type=str)
     # 查询和排序
-    foods = search_and_sort_foods(query=query, cuisine=cuisine, sort_key=sort_key, n=n)
+    foods = search_and_sort_foods(query=query, cuisine=cuisine, sort_key=sort_key, n=n, place=place)
     return jsonify({'foods': foods})
 
 @app.route('/get_cuisines', methods=['GET'])
