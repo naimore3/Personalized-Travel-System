@@ -6,6 +6,7 @@ from utils.sorting_algorithm import get_top_ten_places  # 导入排序方法
 from utils.graph import Graph
 from utils.select_routing_planner import plan_route
 from utils.food_search import search_and_sort_foods, CUISINES, get_all_places
+from utils.indoor_path_finder import find_path_across_floors
 import re
 
 app = Flask(__name__)
@@ -370,6 +371,22 @@ def food_search():
 @app.route('/get_cuisines', methods=['GET'])
 def get_cuisines():
     return jsonify({'cuisines': CUISINES})
+
+@app.route('/api/indoor_path', methods=['POST'])
+def api_indoor_path():
+    """室内导航路径查找API"""
+    data = request.get_json()
+    start_floor = data.get('start_floor')
+    start_idx = data.get('start_idx')
+    end_floor = data.get('end_floor')
+    end_idx = data.get('end_idx')
+    floorData = data.get('floorData')
+    if not all([start_floor, start_idx, end_floor, end_idx, floorData]):
+        return jsonify({'success': False, 'message': '参数不完整'}), 400
+    path = find_path_across_floors(floorData, start_floor, start_idx, end_floor, end_idx)
+    if not path:
+        return jsonify({'success': False, 'message': '未找到可行路径'}), 200
+    return jsonify({'success': True, 'path': path})
 
 if __name__ == '__main__':
     app.run(debug=True)
