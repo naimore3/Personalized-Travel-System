@@ -1,0 +1,345 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>{{ diary.title }} - 日记详情</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
+    <style>
+        .diary-header {
+            position: relative;
+            height: 400px;
+            overflow: hidden;
+            border-radius: 20px;
+            margin-bottom: 2rem;
+        }
+        .diary-header img {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+            filter: brightness(0.8);
+        }
+        .diary-header-content {
+            position: absolute;
+            bottom: 0;
+            left: 0;
+            right: 0;
+            padding: 2rem;
+            background: linear-gradient(to top, rgba(0,0,0,0.8), transparent);
+            color: white;
+        }
+        .diary-header h1 {
+            font-size: 2.5rem;
+            font-weight: 700;
+            margin-bottom: 1rem;
+            text-shadow: 2px 2px 4px rgba(0,0,0,0.3);
+        }
+        .diary-meta {
+            display: flex;
+            gap: 1rem;
+            align-items: center;
+            color: rgba(255,255,255,0.9);
+        }
+        .diary-meta i {
+            margin-right: 0.3rem;
+        }
+        .diary-content {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            margin-bottom: 2rem;
+            font-size: 1.1rem;
+            line-height: 1.8;
+            color: #444;
+        }
+        .rating-container {
+            background: #f8f9fa;
+            border-radius: 15px;
+            padding: 1.5rem;
+            margin-bottom: 2rem;
+        }
+        .rating {
+            display: flex;
+            flex-direction: row-reverse;
+            justify-content: flex-start;
+            gap: 0.5rem;
+        }
+        .rating input {
+            display: none;
+        }
+        .rating label {
+            cursor: pointer;
+            font-size: 2rem;
+            color: #ddd;
+            transition: color 0.2s ease;
+        }
+        .rating input:checked ~ label,
+        .rating label:hover,
+        .rating label:hover ~ label {
+            color: #ffd700;
+        }
+        .stats-container {
+            display: flex;
+            gap: 2rem;
+            margin-top: 1rem;
+        }
+        .stat-item {
+            text-align: center;
+        }
+        .stat-value {
+            font-size: 1.5rem;
+            font-weight: 600;
+            color: #2196F3;
+        }
+        .stat-label {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        .action-buttons {
+            margin-top: 2rem;
+            display: flex;
+            gap: 1rem;
+        }
+        .btn-custom {
+            padding: 0.8rem 1.5rem;
+            border-radius: 10px;
+            font-weight: 500;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+        }
+        .btn-custom i {
+            font-size: 1.1rem;
+        }
+        .comments-section {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+        }
+        .comment {
+            border-bottom: 1px solid #eee;
+            padding: 1rem 0;
+        }
+        .comment:last-child {
+            border-bottom: none;
+        }
+        .comment-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 0.5rem;
+        }
+        .comment-author {
+            font-weight: 600;
+            color: #2196F3;
+        }
+        .comment-date {
+            color: #666;
+            font-size: 0.9rem;
+        }
+        .comment-content {
+            color: #444;
+            line-height: 1.6;
+        }
+        /* 添加视频展示区域样式 */
+        .ai-video-section {
+            background: white;
+            border-radius: 15px;
+            padding: 2rem;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.1);
+            margin-top: 2rem;
+        }
+        .video-container {
+            width: 100%;
+            max-width: 800px;
+            margin: 0 auto;
+            border-radius: 10px;
+            overflow: hidden;
+            background: #f8f9fa;
+            aspect-ratio: 16/9;
+        }
+        .video-container video {
+            width: 100%;
+            height: 100%;
+            object-fit: cover;
+        }
+        .generate-video-btn {
+            margin-top: 1rem;
+            display: flex;
+            align-items: center;
+            gap: 0.5rem;
+            padding: 0.8rem 1.5rem;
+            background: linear-gradient(45deg, #2196F3, #4CAF50);
+            color: white;
+            border: none;
+            border-radius: 10px;
+            cursor: pointer;
+            transition: all 0.3s ease;
+        }
+        .generate-video-btn:hover {
+            transform: translateY(-2px);
+            box-shadow: 0 5px 15px rgba(0,0,0,0.2);
+        }
+        .generate-video-btn:disabled {
+            background: #ccc;
+            cursor: not-allowed;
+            transform: none;
+        }
+        .video-status {
+            margin-top: 1rem;
+            text-align: center;
+            color: #666;
+        }
+    </style>
+</head>
+
+<body>
+    {% include 'navbar.html' %}
+
+    <main class="container mt-5">
+        <div class="diary-header">
+            {% if diary.picture %}
+            <img src="{{ url_for('static', filename='uploads/' + diary.picture.split('\\')[-1]) }}" 
+                 alt="{{ diary.title }}"
+                 onerror="this.onerror=null; this.src='{{ url_for('static', filename='images/default.jpg') }}';">
+            {% else %}
+            <img src="{{ url_for('static', filename='images/default.jpg') }}" alt="{{ diary.title }}">
+            {% endif %}
+            <div class="diary-header-content">
+                <h1>{{ diary.title }}</h1>
+                <div class="diary-meta">
+                    <span><i class="fas fa-user-circle"></i> {{ diary.username }}</span>
+                    <span><i class="fas fa-map-marker-alt"></i> {{ diary.place}}</span>
+                    <span><i class="fas fa-calendar-alt"></i> {{ diary.created_at }}</span>
+                </div>
+            </div>
+        </div>
+
+
+        <div class="rating-container">
+            <h3 class="mb-3">评分</h3>
+            <form id="ratingForm" class="rating-form">
+                <input type="hidden" name="diary_id" value="{{ diary.id }}">
+                <div class="rating">
+                    {% for i in range(5, 0, -1) %}
+                    <input type="radio" name="rating" value="{{ i }}" id="star{{ i }}" 
+                           {% if user_rating == i %}checked{% endif %}>
+                    <label for="star{{ i }}"><i class="fas fa-star"></i></label>
+                    {% endfor %}
+                </div>
+                <button type="submit" class="btn btn-primary mt-3">
+                    <i class="fas fa-star"></i> 提交评分
+                </button>
+            </form>
+
+            <div class="stats-container">
+                <div class="stat-item">
+                    <i class="fas fa-eye fa-2x text-primary"></i>
+                    <div class="stat-value">{{ diary.views|default(0) }}</div>
+                    <div class="stat-label">浏览次数</div>
+                </div>
+                <div class="stat-item">
+                    <i class="fas fa-star fa-2x text-warning"></i>
+                    <div class="stat-value">{{ diary.rating|default(0)|round(1) }}</div>
+                    <div class="stat-label">平均评分</div>
+                </div>
+            </div>
+        </div>
+
+        <div class="diary-content">
+            <h2 class="mb-4">{{ diary.title }}</h2>
+            <div class="content-text">
+                {{ diary.content|safe|nl2br }}
+            </div>
+        </div>
+
+        <div class="action-buttons">
+            <a href="{{ url_for('punch') }}" class="btn btn-primary btn-custom">
+                <i class="fas fa-pen"></i> 写日记
+            </a>
+            {% if diary.place_id %}
+            <a href="{{ url_for('details', place_id=diary.place_id) }}" class="btn btn-outline-primary btn-custom">
+                <i class="fas fa-map-marker-alt"></i> 查看地点
+            </a>
+            {% endif %}
+            <a href="{{ url_for('punch') }}" class="btn btn-outline-secondary btn-custom">
+                <i class="fas fa-arrow-left"></i> 返回列表
+            </a>
+        </div>
+
+    </main>
+
+    <footer class="text-center mt-5 mb-4">
+        <p class="text-muted">环球寻光记 &copy; 2024 版权所有</p>
+    </footer>
+
+    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+    <script>
+        document.getElementById('ratingForm').addEventListener('submit', function(e) {
+            e.preventDefault();
+            
+            const formData = new FormData(this);
+            
+            fetch('/rate_diary', {
+                method: 'POST',
+                body: formData
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    alert('评分成功！');
+                    window.location.reload();
+                } else {
+                    alert(data.message || '评分失败，请重试');
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                alert('提交失败，请重试');
+            });
+        });
+
+        // 添加视频生成相关的JavaScript代码
+        function generateVideo() {
+            const button = document.getElementById('generateVideoBtn');
+            const status = document.getElementById('videoStatus');
+            
+            button.disabled = true;
+            status.textContent = '正在生成动画，请稍候...';
+            
+            fetch('/generate_diary_video', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    diary_id: '{{ diary.id }}'
+                })
+            })
+            .then(response => response.json())
+            .then(data => {
+                if (data.success) {
+                    status.textContent = '动画生成成功！正在刷新页面...';
+                    setTimeout(() => {
+                        window.location.reload();
+                    }, 2000);
+                } else {
+                    status.textContent = data.message || '生成失败，请重试';
+                    button.disabled = false;
+                }
+            })
+            .catch(error => {
+                console.error('Error:', error);
+                status.textContent = '生成失败，请重试';
+                button.disabled = false;
+            });
+        }
+    </script>
+</body>
+
+</html>
