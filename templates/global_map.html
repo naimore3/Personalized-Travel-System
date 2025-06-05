@@ -8,23 +8,120 @@
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
     <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
 </head>
 
 <body>
     <div id="navbar"></div>
 
-    <div class="container my-4">
-        <div class="row justify-content-center">
-            <div class="col-md-8 text-center">
-                <h2 class="fs-2 fw-bold mb-4">环球寻光地图</h2>
-                <div class="alert alert-info">
-                    <h4 class="alert-heading">功能开发中</h4>
-                    <p>环球寻光地图功能正在开发中，敬请期待！</p>
+    <div class="container my-5" style="max-width: 1800px;">
+        <div class="row">
+            <!-- 左侧信息栏：国家卡片滚动栏（动态数据） -->
+            <div class="col-xl-3 col-lg-4 col-md-5 mb-4">
+                <div class="card shadow-sm bg-light h-100">
+                    <div class="card-body p-2" style="overflow-y: auto; max-height: 80vh;">
+                        <div class="row row-cols-2 g-3">
+                            {% for country in countries %}
+                            <div class="col">
+                                <div class="card h-100 shadow-sm">
+                                    <div class="card-header d-flex align-items-center">
+                                        <img src="https://flagcdn.com/{{ country.flag_code }}.svg" alt="{{ country.name }}国旗" style="height: 24px; margin-right: 8px;">
+                                        <span class="fw-bold fs-5">{{ country.name }}</span>
+                                    </div>
+                                    <div class="card-body">
+                                        <p class="card-text">{{ country.desc }}</p>
+                                    </div>
+                                    <div class="card-footer bg-white border-0 text-end">
+                                        <button class="btn btn-outline-primary btn-sm w-100 ask-ai-btn" data-country="{{ country.name }}">问问AI</button>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        </div>
+                    </div>
+                </div>
+            </div>
+            <!-- 右侧地图栏 -->
+            <div class="col-xl-9 col-lg-8 col-md-7 d-flex align-items-center justify-content-center">
+                <div class="w-100">
+                    <img src="{{ url_for('static', filename='世界地图.jpg') }}" alt="世界地图" class="img-fluid rounded shadow border"
+                        style="max-height: 1000px; min-height: 500px; object-fit: contain; background: #f8f9fa; width: 100%;">
+                    <div class="text-end mt-2 text-muted" style="font-size: 1.1rem;">© 环球寻光地图</div>
                 </div>
             </div>
         </div>
     </div>
 
+    <!-- AI弹窗结构 -->
+    <div id="aiModal" class="modal" tabindex="-1" style="display:none; background:rgba(0,0,0,0.3);">
+      <div class="modal-dialog" style="max-width:500px; margin:5vh auto; height:90vh; display:flex; flex-direction:column; justify-content:flex-end;">
+        <div class="modal-content" style="height:100%; max-height:100vh; overflow:hidden; display:flex; flex-direction:column;">
+          <div class="modal-header">
+            <h5 class="modal-title">AI旅游助手</h5>
+            <button type="button" class="btn-close" id="aiModalClose" aria-label="Close"></button>
+          </div>
+          <div class="modal-body" id="aiModalBody" style="overflow-y:auto; flex:1 1 auto; max-height:none;">
+            <div id="aiModalLoading" style="text-align:center; color:#888;">AI正在生成内容，请稍候...</div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <script>
+    document.addEventListener('DOMContentLoaded', function() {
+      document.querySelectorAll('.ask-ai-btn').forEach(function(btn) {
+        btn.addEventListener('click', function() {
+          const country = btn.getAttribute('data-country');
+          showAiModal();
+          // 不再立即重置aiModalBody，showAiModal已处理
+          // 向后端请求AI内容
+          fetch('/ask_ai', {
+            method: 'POST',
+            headers: {
+              'Content-Type': 'application/json'
+            },
+            body: JSON.stringify({ country: country })
+          })
+          .then(res => res.json())
+          .then(data => {
+            if (aiTimer) clearInterval(aiTimer);
+            const md = data.answer || 'AI无内容返回';
+            document.getElementById('aiModalBody').innerHTML = '<div style="white-space:pre-line;">' + marked.parse(md) + '</div>';
+          })
+          .catch(err => {
+            if (aiTimer) clearInterval(aiTimer);
+            document.getElementById('aiModalBody').innerHTML = '<span style="color:red;">AI服务异常，请稍后重试。</span>';
+          });
+        });
+      });
+      let aiStartTime = null;
+      let aiTimer = null;
+
+      function showAiModal() {
+        document.getElementById('aiModal').style.display = 'block';
+        document.getElementById('aiModalBody').innerHTML = '<div id="aiModalLoading" style="text-align:center; color:#888;">AI正在生成内容，请稍候...<br><span id="aiWaitTime">已等待 0 秒</span></div>';
+        aiStartTime = Date.now();
+        if (aiTimer) clearInterval(aiTimer);
+        aiTimer = setInterval(function() {
+          const seconds = Math.floor((Date.now() - aiStartTime) / 1000);
+          const waitTimeSpan = document.getElementById('aiWaitTime');
+          if (waitTimeSpan) {
+            waitTimeSpan.textContent = `已等待 ${seconds} 秒`;
+          }
+        }, 1000);
+      }
+      document.getElementById('aiModalClose').onclick = function() {
+        document.getElementById('aiModal').style.display = 'none';
+        if (aiTimer) clearInterval(aiTimer);
+      };
+      document.getElementById('aiModal').onclick = function(e) {
+        if (e.target === this) {
+          this.style.display = 'none';
+          if (aiTimer) clearInterval(aiTimer);
+        }
+      };
+    });
+    </script>
     <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
 </body>
 

@@ -10,12 +10,38 @@
     <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
+        html, body {
+            height: 100%;
+            background: #f6f8fa;
+        }
+        .container-fluid {
+            min-height: 100vh;
+        }
         .diary-form {
             background: #fff;
             border-radius: 15px;
-            box-shadow: 0 0 20px rgba(0,0,0,0.1);
+            box-shadow: 0 0 20px rgba(0,0,0,0.07);
             padding: 2rem;
-            margin-bottom: 2rem;
+            margin-bottom: 0;
+        }
+        #diaryScrollContainer {
+            scrollbar-width: thin;
+            scrollbar-color: #2196F3 #e0e0e0;
+        }
+        #diaryScrollContainer::-webkit-scrollbar {
+            width: 8px;
+        }
+        #diaryScrollContainer::-webkit-scrollbar-thumb {
+            background: #2196F3;
+            border-radius: 4px;
+        }
+        #diaryScrollContainer::-webkit-scrollbar-track {
+            background: #e0e0e0;
+            border-radius: 4px;
+        }
+        .search-container {
+            border-radius: 10px;
+            margin-bottom: 0.5rem;
         }
         .diary-card {
             transition: transform 0.3s ease;
@@ -43,13 +69,6 @@
             width: 100%;
             height: 200px;
             object-fit: cover;
-        }
-        .search-container {
-            background: #fff;
-            border-radius: 10px;
-            padding: 1rem;
-            box-shadow: 0 2px 10px rgba(0,0,0,0.05);
-            margin-bottom: 2rem;
         }
         .badge {
             padding: 0.5em 0.8em;
@@ -85,129 +104,133 @@
 <body>
     <div id="navbar"></div>
 
-    <div class="container my-5">
-        <h1 class="display-4 mb-4 text-center">时光胶囊</h1>
-        <p class="lead text-center text-muted mb-5">记录你的旅行故事，分享美好瞬间</p>
-
-        <!-- 日记表单 -->
-        <div class="diary-form">
-            <form method="post" enctype="multipart/form-data" class="row g-4">
-                <div class="col-md-12">
-                    <label for="username" class="form-label">
-                        <i class="fas fa-user"></i> 用户名
-                    </label>
-                    <input type="text" class="form-control" id="username" name="username" value="{{ session.username }}" readonly>
-                </div>
-                <div class="col-md-12">
-                    <label for="place_id" class="form-label">
-                        <i class="fas fa-map-marker-alt"></i> 打卡地点
-                    </label>
-                    <select class="form-select" id="place_id" name="place_id" required>
-                        <option value="">请选择打卡地点</option>
-                        {% for place in places %}
-                        <option value="{{ place.Place_Name }}" {% if place_param and place_param == place.Place_Name %}selected{% endif %}>{{ place.Place_Name }}</option>
-                        {% endfor %}
-                    </select>
-                </div>
-                <div class="col-md-12">
-                    <label for="picture" class="form-label">
-                        <i class="fas fa-image"></i> 上传图片
-                    </label>
-                    <input type="file" class="form-control" id="picture" name="picture" accept="image/*">
-                </div>
-                <div class="col-md-12">
-                    <label for="title" class="form-label">
-                        <i class="fas fa-heading"></i> 标题
-                    </label>
-                    <input type="text" class="form-control" id="title" name="title" placeholder="给你的故事起个标题吧">
-                </div>
-                <div class="col-md-12">
-                    <label for="content" class="form-label">
-                        <i class="fas fa-pen"></i> 正文
-                    </label>
-                    <textarea class="form-control" id="content" name="content" placeholder="分享你的旅行故事..." rows="4"></textarea>
-                </div>
-                <div class="col-md-12 text-center">
-                    <button type="submit" class="btn btn-primary btn-lg">
-                        <i class="fas fa-paper-plane"></i> 发布故事
-                    </button>
-                </div>
-            </form>
-        </div>
-
-        <!-- 搜索和筛选 -->
-        <div class="search-container">
-            <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
-                <div class="input-group" style="max-width: 400px;">
-                    <select class="form-select" id="searchType" style="max-width: 120px;">
-                        <option value="all">全部</option>
-                        <option value="place">地点</option>
-                        <option value="title">标题</option>
-                        <option value="content">内容</option>
-                    </select>
-                    <input type="text" class="form-control" id="searchInput" placeholder="搜索故事...">
-                    <button class="btn btn-primary" type="button" id="searchButton">
-                        <i class="fas fa-search"></i>
-                    </button>
-                </div>
-                <div class="btn-group" role="group">
-                    <input type="radio" class="btn-check" name="sortOption" id="sortViews" value="views">
-                    <label class="btn btn-outline-primary" for="sortViews">
-                        <i class="fas fa-fire"></i> 热门
-                    </label>
-                    <input type="radio" class="btn-check" name="sortOption" id="sortRating" value="rating">
-                    <label class="btn btn-outline-primary" for="sortRating">
-                        <i class="fas fa-star"></i> 评分
-                    </label>
+    <div class="container-fluid my-0 px-0" style="min-height: 100vh; background: #f6f8fa;">
+        <div class="row g-0" style="min-height: 100vh;">
+            <!-- 左侧：打卡表单 -->
+            <div class="col-md-4 d-flex align-items-center justify-content-center" style="background: #fff; min-height: 100vh; box-shadow: 2px 0 10px rgba(0,0,0,0.03);">
+                <div class="diary-form w-100" style="max-width: 420px; margin: 2rem auto; box-shadow: none;">
+                    <h1 class="display-5 mb-4 text-center">时光胶囊</h1>
+                    <p class="lead text-center text-muted mb-4">记录你的旅行故事，分享美好瞬间</p>
+                    <form method="post" enctype="multipart/form-data" class="row g-4">
+                        <div class="col-md-12">
+                            <label for="username" class="form-label">
+                                <i class="fas fa-user"></i> 用户名
+                            </label>
+                            <input type="text" class="form-control" id="username" name="username" value="{{ session.username }}" readonly>
+                        </div>
+                        <div class="col-md-12">
+                            <label for="place_id" class="form-label">
+                                <i class="fas fa-map-marker-alt"></i> 打卡地点
+                            </label>
+                            <select class="form-select" id="place_id" name="place_id" required>
+                                <option value="">请选择打卡地点</option>
+                                {% for place in places %}
+                                <option value="{{ place.Place_Name }}" {% if place_param and place_param == place.Place_Name %}selected{% endif %}>{{ place.Place_Name }}</option>
+                                {% endfor %}
+                            </select>
+                        </div>
+                        <div class="col-md-12">
+                            <label for="picture" class="form-label">
+                                <i class="fas fa-image"></i> 上传图片
+                            </label>
+                            <input type="file" class="form-control" id="picture" name="picture" accept="image/*">
+                        </div>
+                        <div class="col-md-12">
+                            <label for="title" class="form-label">
+                                <i class="fas fa-heading"></i> 标题
+                            </label>
+                            <input type="text" class="form-control" id="title" name="title" placeholder="给你的故事起个标题吧">
+                        </div>
+                        <div class="col-md-12">
+                            <label for="content" class="form-label">
+                                <i class="fas fa-pen"></i> 正文
+                            </label>
+                            <textarea class="form-control" id="content" name="content" placeholder="分享你的旅行故事..." rows="4"></textarea>
+                        </div>
+                        <div class="col-md-12 text-center">
+                            <button type="submit" class="btn btn-primary btn-lg">
+                                <i class="fas fa-paper-plane"></i> 发布故事
+                            </button>
+                        </div>
+                    </form>
                 </div>
             </div>
-        </div>
-
-        <!-- 日记展示 -->
-        <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" id="diaryContainer">
-            {% if all_diaries %}
-                {% for diary in all_diaries %}
-                <div class="col">
-                    <div class="diary-card">
-                        <!-- 调试信息 -->
-                        <p>Diary ID: {{ diary.id }}</p>
-                        {% if diary.picture %}
-                        <img src="{{ url_for('static', filename=diary.picture.replace('\\', '/').replace('static/', '')) }}" 
-                             alt="日记图片" 
-                             class="card-img-top"
-                             onerror="this.onerror=null; this.src='{{ url_for('static', filename='images/default.jpg') }}';">
-
-                        {% endif %}
-                        <div class="card-body">
-                            <div class="d-flex justify-content-between align-items-start mb-2">
-                                <h5 class="card-title">{{ diary.title }}</h5>
-                                <div class="d-flex gap-2">
-                                    <span class="badge bg-primary">
-                                        <i class="fas fa-eye"></i> {{ diary.views|default(0) }}
-                                    </span>
-                                    <span class="badge bg-warning text-dark">
-                                        <i class="fas fa-star"></i> {{ diary.rating|default(0)|round(1) }}
-                                    </span>
-                                </div>
-                            </div>
-                            <h6 class="card-subtitle mb-2 text-muted">
-                                <i class="fas fa-user-circle"></i> {{ diary.username }}
-                            </h6>
-                            <p class="card-text">{{ diary.content[:100] }}{% if diary.content|length > 100 %}...{% endif %}</p>
-                            <a href="{{ url_for('diary_detail', diary_id=diary.id) }}" 
-                               class="btn btn-outline-primary w-100">
-                                <i class="fas fa-book-open"></i> 阅读全文
-                            </a>
+            <!-- 右侧：日记展示和搜索 -->
+            <div class="col-md-8 d-flex flex-column" style="background: #f6f8fa; min-height: 100vh;">
+                <div class="search-container sticky-top bg-white py-3 px-4" style="z-index: 10; box-shadow: 0 2px 10px rgba(0,0,0,0.04);">
+                    <div class="d-flex justify-content-between align-items-center flex-wrap gap-3">
+                        <div class="input-group" style="max-width: 400px;">
+                            <select class="form-select" id="searchType" style="max-width: 120px;">
+                                <option value="all">全部</option>
+                                <option value="place">地点</option>
+                                <option value="title">标题</option>
+                                <option value="content">内容</option>
+                            </select>
+                            <input type="text" class="form-control" id="searchInput" placeholder="搜索故事...">
+                            <button class="btn btn-primary" type="button" id="searchButton">
+                                <i class="fas fa-search"></i>
+                            </button>
+                        </div>
+                        <div class="btn-group" role="group">
+                            <input type="radio" class="btn-check" name="sortOption" id="sortViews" value="views">
+                            <label class="btn btn-outline-primary" for="sortViews">
+                                <i class="fas fa-fire"></i> 热门
+                            </label>
+                            <input type="radio" class="btn-check" name="sortOption" id="sortRating" value="rating">
+                            <label class="btn btn-outline-primary" for="sortRating">
+                                <i class="fas fa-star"></i> 评分
+                            </label>
                         </div>
                     </div>
                 </div>
-                {% endfor %}
-            {% else %}
-                <div class="col-12 text-center py-5">
-                    <i class="fas fa-book-open fa-3x text-muted mb-3"></i>
-                    <p class="lead text-muted">暂无故事，快来分享你的旅行经历吧！</p>
+                <div class="flex-grow-1 overflow-auto px-4 pt-2 pb-4" id="diaryScrollContainer" style="max-height: calc(100vh - 110px);">
+                    <div class="row row-cols-1 row-cols-md-2 row-cols-lg-3 g-4" id="diaryContainer">
+                        {% if all_diaries %}
+                            {% for diary in all_diaries %}
+                            <div class="col">
+                                <div class="diary-card">
+                                    <!-- 调试信息 -->
+                                    <p>Diary ID: {{ diary.id }}</p>
+                                    {% if diary.picture %}
+                                    <img src="{{ url_for('static', filename=diary.picture.replace('\\', '/').replace('static/', '')) }}" 
+                                         alt="日记图片" 
+                                         class="card-img-top"
+                                         onerror="this.onerror=null; this.src='{{ url_for('static', filename='images/default.jpg') }}';">
+
+                                    {% endif %}
+                                    <div class="card-body">
+                                        <div class="d-flex justify-content-between align-items-start mb-2">
+                                            <h5 class="card-title">{{ diary.title }}</h5>
+                                            <div class="d-flex gap-2">
+                                                <span class="badge bg-primary">
+                                                    <i class="fas fa-eye"></i> {{ diary.views|default(0) }}
+                                                </span>
+                                                <span class="badge bg-warning text-dark">
+                                                    <i class="fas fa-star"></i> {{ diary.rating|default(0)|round(1) }}
+                                                </span>
+                                            </div>
+                                        </div>
+                                        <h6 class="card-subtitle mb-2 text-muted">
+                                            <i class="fas fa-user-circle"></i> {{ diary.username }}
+                                        </h6>
+                                        <p class="card-text">{{ diary.content[:100] }}{% if diary.content|length > 100 %}...{% endif %}</p>
+                                        <a href="{{ url_for('diary_detail', diary_id=diary.id) }}" 
+                                           class="btn btn-outline-primary w-100">
+                                            <i class="fas fa-book-open"></i> 阅读全文
+                                        </a>
+                                    </div>
+                                </div>
+                            </div>
+                            {% endfor %}
+                        {% else %}
+                            <div class="col-12 text-center py-5">
+                                <i class="fas fa-book-open fa-3x text-muted mb-3"></i>
+                                <p class="lead text-muted">暂无故事，快来分享你的旅行经历吧！</p>
+                            </div>
+                        {% endif %}
+                    </div>
                 </div>
-            {% endif %}
+            </div>
         </div>
     </div>
 
@@ -268,7 +291,9 @@
         function updateDiaries() {
             const searchType = document.getElementById('searchType').value;
             const searchText = document.getElementById('searchInput').value;
-            const sortBy = document.querySelector('input[name="sortOption"]:checked').value;
+            // 修复：健壮性判断，若未选中排序则默认'views'
+            const sortRadio = document.querySelector('input[name="sortOption"]:checked');
+            const sortBy = sortRadio ? sortRadio.value : 'views';
             
             fetch(`/sort_diaries?sort_by=${sortBy}&search_text=${encodeURIComponent(searchText)}&search_type=${searchType}`)
                 .then(response => response.json())

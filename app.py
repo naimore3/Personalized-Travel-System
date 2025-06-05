@@ -15,6 +15,14 @@ from werkzeug.utils import secure_filename
 from datetime import datetime
 from PIL import Image
 import numpy as np
+import requests
+import time
+import hashlib
+import hmac
+import base64
+import json
+import websocket  # 新增依赖
+import ssl
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # 用于会话管理
@@ -499,8 +507,41 @@ def domestic_map():
 
 @app.route('/global_map')
 def global_map():
-    """环球地图页面"""
-    return render_template('global_map.html')
+    """环球地图页面，动态读取国家数据"""
+    import pandas as pd
+    # 完善国家中文名到国旗代码映射（ISO 3166-1 alpha-2）
+    country_flag_map = {
+        '中国': 'cn', '印度': 'in', '日本': 'jp', '韩国': 'kr', '泰国': 'th', '缅甸': 'mm',
+        '印度尼西亚': 'id', '越南': 'vn', '马来西亚': 'my', '尼泊尔': 'np', '沙特阿拉伯': 'sa',
+        '伊朗': 'ir', '土耳其': 'tr', '菲律宾': 'ph', '以色列': 'il', '新加坡': 'sg',
+        '文莱': 'bn', '不丹': 'bt', '阿联酋': 'ae', '阿富汗': 'af', '法国': 'fr',
+        '意大利': 'it', '英国': 'gb', '德国': 'de', '西班牙': 'es', '瑞典': 'se',
+        '瑞士': 'ch', '荷兰': 'nl', '俄罗斯': 'ru', '希腊': 'gr', '挪威': 'no',
+        '芬兰': 'fi', '丹麦': 'dk', '葡萄牙': 'pt', '奥地利': 'at', '匈牙利': 'hu',
+        '波兰': 'pl', '捷克': 'cz', '比利时': 'be', '圣马力诺': 'sm', '列支敦士登': 'li',
+        '美国': 'us', '巴西': 'br', '加拿大': 'ca', '墨西哥': 'mx', '阿根廷': 'ar',
+        '秘鲁': 'pe', '哥伦比亚': 'co', '智利': 'cl', '古巴': 'cu', '牙买加': 'jm',
+        '哥斯达黎加': 'cr', '乌拉圭': 'uy', '巴拿马': 'pa', '巴巴多斯': 'bb',
+        '厄瓜多尔': 'ec', '埃及': 'eg', '南非': 'za', '肯尼亚': 'ke', '尼日利亚': 'ng',
+        '摩洛哥': 'ma', '埃塞俄比亚': 'et', '坦桑尼亚': 'tz', '加纳': 'gh',
+        '纳米比亚': 'na', '博茨瓦纳': 'bw', '马达加斯加': 'mg', '喀麦隆': 'cm',
+        '津巴布韦': 'zw', '多哥': 'tg', '塞内加尔': 'sn', '乌干达': 'ug', '安哥拉': 'ao',
+        '赞比亚': 'zm', '澳大利亚': 'au', '新西兰': 'nz', '斐济': 'fj',
+        '巴布亚新几内亚': 'pg', '汤加': 'to', '所罗门群岛': 'sb', '图瓦卢': 'tv',
+        '基里巴斯': 'ki', '萨摩亚': 'ws', '密克罗尼西亚': 'fm', '瓦努阿图': 'vu',
+        '瑙鲁': 'nr'
+    }
+    countries = []
+    try:
+        df = pd.read_excel('data/country_features.xlsx')
+        for _, row in df.iterrows():
+            name = str(row[0]).strip()
+            desc = str(row[1]).strip() if len(row) > 1 else ''
+            flag_code = country_flag_map.get(name, 'un')
+            countries.append({'name': name, 'desc': desc, 'flag_code': flag_code})
+    except Exception as e:
+        print(f"读取国家数据失败: {e}")
+    return render_template('global_map.html', countries=countries)
 
 @app.route('/update_map_graph', methods=['POST'])
 def update_map_graph():
@@ -728,21 +769,7 @@ def sort_diaries_route():
 def generate_travel_video(image_path, output_path, duration=4):
     """使用AI生成旅游动画视频"""
     try:
-        # 读取原始图片
-        import cv2
-        from moviepy.editor import ImageSequenceClip
-        img = cv2.imread(image_path)
-        if img is None:
-            raise Exception("无法读取图片")
-
-        # 转换为RGB格式
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        
-        # 创建帧序列
-        frames = []
-        num_frames = int(duration * 30)  # 30fps
-        
-        # 生成缩放和平移动画效果
+        # 读取原
         for i in range(num_frames):
             # 计算缩放因子和平移量
             scale = 1 + 0.1 * np.sin(i / num_frames * np.pi)
@@ -823,6 +850,68 @@ def generate_diary_video():
         if 'diary_id' in locals():
             excel_handler.update_diary_video(diary_id, None, 'failed')
         return jsonify({'success': False, 'message': '服务器错误'}), 500
+
+@app.route('/ask_ai', methods=['POST'])
+def ask_ai():
+    try:
+        data = request.get_json()
+        country = data.get('country') if data else None
+        if not country:
+            return jsonify({'answer': '未指定国家'}), 400
+        # 构造API请求体
+        url = "https://spark-api-open.xf-yun.com/v2/chat/completions"
+        api_data = {
+            "max_tokens": 4096,
+            "top_k": 4,
+            "temperature": 0.5,
+            "messages": [
+                {
+                    "role": "system",
+                    "content": "你是资深的旅游达人Yoyo,用户将输入一个国家，你需要为用户返回该国家的基础介绍，该国家的人文特点，自然风光特点。然后本别向用户介绍该国家的热门景点和小众景点。最后给用户一个合适的旅游行程安排，以及旅游建议。\n\n你的语言需要生动活泼，并且使用大量emoji进行回答。"
+                },
+                {
+                    "role": "user",
+                    "content": f"请介绍{country}"
+                }
+            ],
+            "model": "x1",
+            "tools": [
+                {
+                    "web_search": {
+                        "search_mode": "normal",
+                        "enable": False
+                    },
+                    "type": "web_search"
+                }
+            ],
+            "stream": True
+        }
+        header = {
+            "Authorization": "Bearer cedkgQopndMsKnuHfMQZ:BKIGTFdFFyTTXakqABqY"
+        }
+        response = requests.post(url, headers=header, json=api_data, stream=True, timeout=30)
+        response.encoding = "utf-8"
+        answer = ""
+        for line in response.iter_lines(decode_unicode=True):
+            if not line or not line.strip():
+                continue
+            try:
+                # 兼容流式返回格式
+                if line.startswith("data: "):
+                    line = line[6:]
+                data_json = json.loads(line)
+                if 'choices' in data_json and data_json['choices']:
+                    delta = data_json['choices'][0].get('delta', {})
+                    content = delta.get('content', '')
+                    answer += content
+            except Exception:
+                continue
+        if not answer:
+            answer = 'AI未返回内容，请稍后重试。'
+        return jsonify({'answer': answer})
+    except Exception as e:
+        print(f"AI接口调用异常: {e}")
+        return jsonify({'answer': 'AI服务异常，请稍后重试。'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)
