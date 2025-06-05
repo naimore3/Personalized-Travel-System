@@ -151,7 +151,7 @@
                     </button>
                 </div>
                 <div class="btn-group" role="group">
-                    <input type="radio" class="btn-check" name="sortOption" id="sortViews" value="views" checked>
+                    <input type="radio" class="btn-check" name="sortOption" id="sortViews" value="views">
                     <label class="btn btn-outline-primary" for="sortViews">
                         <i class="fas fa-fire"></i> 热门
                     </label>
@@ -172,7 +172,7 @@
                         <!-- 调试信息 -->
                         <p>Diary ID: {{ diary.id }}</p>
                         {% if diary.picture %}
-                        <img src="{{ url_for('static', filename=diary.picture.replace('static/', '')) }}" 
+                        <img src="{{ url_for('static', filename=diary.picture.replace('\\', '/').replace('static/', '')) }}" 
                              alt="日记图片" 
                              class="card-img-top"
                              onerror="this.onerror=null; this.src='{{ url_for('static', filename='images/default.jpg') }}';">
@@ -283,15 +283,16 @@
                         }
                         
                         data.diaries.forEach(diary => {
+                            // 修正图片路径分隔符
+                            let picturePath = diary.picture ? diary.picture.replace(/\\/g, '/') : '';
                             const diaryHtml = `
                                 <div class="col">
                                     <div class="diary-card">
-                                        ${diary.picture ? `
-                                            <img src="/static/${diary.picture}" 
-                                                 alt="日记图片" 
+                                        ${picturePath ? `
+                                            <img src="/static/${picturePath}"
+                                                 alt="日记图片"
                                                  class="card-img-top"
                                                  onerror="this.onerror=null; this.src='/static/images/default.jpg';">
-
                                         ` : ''}
                                         <div class="card-body">
                                             <div class="d-flex justify-content-between align-items-start mb-2">
@@ -335,7 +336,31 @@
 
         // 监听排序选项变化
         document.querySelectorAll('input[name="sortOption"]').forEach(radio => {
-            radio.addEventListener('change', updateDiaries);
+            radio.addEventListener('change', function() {
+                // 先移除所有label的active样式
+                document.querySelectorAll('.btn-group label').forEach(label => {
+                    label.classList.remove('active', 'btn-primary');
+                    label.classList.add('btn-outline-primary');
+                });
+                // 给当前选中的加上active和btn-primary
+                const label = document.querySelector('label[for="' + this.id + '"]');
+                if (label) {
+                    label.classList.add('active', 'btn-primary');
+                    label.classList.remove('btn-outline-primary');
+                }
+                updateDiaries();
+            });
+        });
+
+        // 页面加载时不选中任何排序方式
+        window.addEventListener('DOMContentLoaded', function() {
+            document.querySelectorAll('input[name="sortOption"]').forEach(radio => {
+                radio.checked = false;
+            });
+            document.querySelectorAll('.btn-group label').forEach(label => {
+                label.classList.remove('active', 'btn-primary');
+                label.classList.add('btn-outline-primary');
+            });
         });
 
         // 监听搜索框回车
