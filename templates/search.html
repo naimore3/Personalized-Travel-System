@@ -1,0 +1,499 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>环球寻光记 - 周边搜索</title>
+    <link rel="stylesheet" href="https://cache.amap.com/lbs/static/main1119.css"/>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
+    <style>
+        .search-card {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+            padding: 24px 20px 20px 20px;
+            margin-bottom: 20px;
+            display: flex;
+            flex-direction: column;
+            height: 100%;
+        }
+        .map-card {
+            background: #fff;
+            border-radius: 8px;
+            box-shadow: 0 2px 8px rgba(0,0,0,0.07);
+            padding: 0;
+            height: 600px;
+            position: relative;
+        }
+        #container {
+            width: 100%;
+            height: 100%;
+            border-radius: 8px;
+        }
+        #panel {
+            position: absolute;
+            background-color: white;
+            max-height: 90%;
+            overflow-y: auto;
+            top: 10px;
+            right: 10px;
+            width: 280px;
+            border-radius: 5px;
+            box-shadow: 0 2px 10px rgba(0,0,0,0.1);
+            padding: 10px;
+            z-index: 10;
+        }
+        #poiList {
+            flex: 1 1 0;
+            min-height: 0;
+            overflow-y: auto;
+            margin-top: 0;
+        }
+        .poi-item {
+            padding: 8px 6px;
+            border-bottom: 1px solid #eee;
+            font-size: 15px;
+        }
+        .poi-item:last-child {
+            border-bottom: none;
+        }
+        .poi-name { font-weight: bold; }
+        .poi-addr { color: #888; font-size: 13px; }
+        .poi-dist { color: #007bff; font-size: 13px; }
+    </style>
+    <script type="text/javascript">
+        window._AMapSecurityConfig = {
+            securityJsCode: "e754181c0557bd50f114e8944c9100bf"
+        };
+    </script>
+    <script type="text/javascript" src="https://webapi.amap.com/maps?v=2.0&key=a4db26f20581ee86ee953a1e3ac1fbd1&plugin=AMap.PlaceSearch"></script>
+</head>
+
+<body>
+    <div id="navbar"></div>
+    <div class="container-fluid" style="height: calc(100vh - 56px);">
+        <div class="d-flex flex-row h-100" style="height: 100%;">
+            <div class="search-card d-flex flex-column h-100" style="width:300px; min-width:300px; max-width:300px; height: 100%; margin-bottom:0;">
+                <div class="mb-3">
+                    <label for="keyword" class="form-label">选择地点：</label>
+                    <select id="keyword" class="form-select">
+                        <option value="">加载中...</option>
+                    </select>
+                </div>
+                <div class="mb-3">
+                    <label for="poiType" class="form-label">周边设施类型：</label>
+                    <select id="poiType" class="form-select">
+                        <option value="">请选择设施类型</option>
+                        <option value="餐饮服务">餐厅</option>
+                        <option value="咖啡厅">咖啡厅</option>
+                        <option value="公共厕所">厕所</option>
+                        <option value="停车场">停车场</option>
+                        <option value="商场">商场</option>
+                        <option value="超市">超市</option>
+                        <option value="银行">银行</option>
+                        <option value="ATM">ATM</option>
+                    </select>
+                </div>
+                <button id="searchBtn" class="btn btn-primary w-100 mb-3">开始搜索</button>
+                <div id="poiList" class="flex-grow-1" style="min-height:0;"></div>
+            </div>
+            <div class="flex-grow-1 d-flex flex-column h-100" style="height: 100%; min-width:0;">
+                <div class="map-card flex-grow-1 h-100" style="height: 100%; min-height: 400px;">
+                    <div id="container"></div>
+                    <div id="panel"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+
+    <script type="text/javascript">
+        var map = new AMap.Map("container", {
+            resizeEnable: true,
+            zoom: 11,
+            center: [116.397428, 39.90923]
+        });
+        
+        // 用于存储圆形范围的变量
+        var searchCircle = null;
+        // 用于存储所有连线的数组
+        var polylines = [];
+
+        // 定义交通方式组合的颜色映射
+        const TRANSPORT_COLORS = {
+            '步行': '#FF3366',                           // 玫红色：仅步行
+            '步行,骑行': '#33FF66',                      // 亮绿色：步行+骑行
+            '步行,驾车': '#3399FF',                      // 天蓝色：步行+驾车
+            '步行,骑行,驾车': '#FF9933'                  // 亮橙色：全部支持
+        };
+
+        // 获取交通方式的颜色
+        function getTransportColor(modes) {
+            // 确保modes是数组
+            if (!Array.isArray(modes)) {
+                console.error('Invalid modes:', modes);
+                return '#666666';
+            }
+            
+            // 对交通方式进行排序，确保相同组合得到相同的颜色
+            const sortedModes = [...modes].sort().join(',');
+            console.log('Original modes:', modes);
+            console.log('Sorted modes:', sortedModes);
+            
+            // 检查是否包含所有交通方式
+            if (modes.includes('步行') && modes.includes('骑行') && modes.includes('驾车')) {
+                console.log('All transport modes available, using orange color');
+                return TRANSPORT_COLORS['步行,骑行,驾车'];
+            }
+            
+            // 其他情况使用正常的颜色映射
+            const color = TRANSPORT_COLORS[sortedModes];
+            console.log('Selected color:', color);
+            return color || '#666666'; // 默认灰色
+        }
+        
+        // 清除地图上的所有内容
+        function clearMapContent() {
+            // 清除圆形范围
+            if (searchCircle) {
+                searchCircle.setMap(null);
+            }
+            // 清除所有连线
+            polylines.forEach(line => line.setMap(null));
+            polylines = [];
+            // 清除地图上的所有覆盖物（标记点、信息窗体等）
+            map.clearMap();
+            // 清除搜索结果面板
+            document.getElementById('panel').innerHTML = '';
+        }
+
+        // 创建连线
+        function createConnections(pois) {
+            console.log('Sending POIs to backend:', pois);
+            
+            // 发送搜索结果到后端
+            fetch('/update_graph', {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({
+                    pois: pois.map(poi => ({
+                        id: poi.id,
+                        location: {
+                            lng: poi.location.lng,
+                            lat: poi.location.lat
+                        },
+                        name: poi.name,
+                        address: poi.address || ''
+                    }))
+                })
+            })
+            .then(response => {
+                if (!response.ok) {
+                    throw new Error('Network response was not ok');
+                }
+                return response.json();
+            })
+            .then(data => {
+                console.log('Received connections from backend:', data);
+                
+                // 清除之前的连线
+                polylines.forEach(line => line.setMap(null));
+                polylines = [];
+                
+                // 绘制所有连线
+                if (data.connections && data.connections.edges) {
+                    console.log('All connections:', data.connections); // 添加调试日志
+                    data.connections.edges.forEach(edge => {
+                        console.log('Processing edge:', edge);
+                        
+                        // 检查点的位置信息是否存在
+                        if (!edge.source || !edge.source.location || !edge.target || !edge.target.location) {
+                            console.error('Invalid edge data:', edge);
+                            return;
+                        }
+
+                        // 获取该连接支持的交通方式的颜色
+                        const color = getTransportColor(edge.properties.modes);
+                        console.log('Selected color for modes', edge.properties.modes, ':', color);
+                        
+                        // 创建连线
+                        var line = new AMap.Polyline({
+                            path: [
+                                [edge.source.location.lng, edge.source.location.lat],
+                                [edge.target.location.lng, edge.target.location.lat]
+                            ],
+                            strokeColor: color,
+                            strokeOpacity: 0.8,
+                            strokeWeight: 3,
+                            strokeStyle: "solid",
+                            lineJoin: 'round',
+                            lineCap: 'round',
+                            zIndex: 50,
+                            // 添加鼠标悬停提示信息
+                            extData: {
+                                modes: edge.properties.modes,
+                                weights: edge.properties.weights,
+                                from: edge.source.name,
+                                to: edge.target.name,
+                                distance: edge.properties.distance,
+                                congestion: edge.properties.congestion
+                            }
+                        });
+                        
+                        // 添加鼠标悬停事件
+                        line.on('mouseover', function(e) {
+                            const data = e.target.getExtData();
+                            console.log('Hover data:', data);
+                            const content = `
+                                <div style="padding: 10px;">
+                                    <p><strong>从:</strong> ${data.from}</p>
+                                    <p><strong>到:</strong> ${data.to}</p>
+                                    <p><strong>距离:</strong> ${data.distance >= 1000 ? 
+                                        (data.distance / 1000).toFixed(2) + ' 公里' : 
+                                        Math.round(data.distance) + ' 米'}</p>
+                                    <p><strong>拥挤度:</strong> ${data.congestion ? 
+                                        (data.congestion * 100).toFixed(0) + '%' : 
+                                        '未知'}</p>
+                                    <p><strong>支持的交通方式:</strong></p>
+                                    ${Object.entries(data.weights).map(([mode, weight]) => 
+                                        `<p>${mode}: ${Math.round(weight)}分钟</p>`
+                                    ).join('')}
+                                </div>
+                            `;
+                            
+                            // 创建信息窗体
+                            var infoWindow = new AMap.InfoWindow({
+                                content: content,
+                                offset: new AMap.Pixel(0, -30)
+                            });
+                            
+                            // 在鼠标位置打开信息窗体
+                            infoWindow.open(map, e.target.getPath()[0]);
+                            
+                            // 保存信息窗体引用，以便在mouseout时关闭
+                            line.infoWindow = infoWindow;
+                        });
+                        
+                        // 添加鼠标移出事件
+                        line.on('mouseout', function(e) {
+                            if (e.target.infoWindow) {
+                                e.target.infoWindow.close();
+                            }
+                        });
+                        
+                        line.setMap(map);
+                        polylines.push(line);
+                    });
+                } else {
+                    console.error('Invalid connections data:', data);
+                }
+            })
+            .catch(error => {
+                console.error('Error in createConnections:', error);
+            });
+        }
+        
+        // 初始化地点搜索插件
+            var placeSearch = new AMap.PlaceSearch({
+                pageSize: 5,
+                pageIndex: 1,
+                city: "全国",
+                citylimit: false,
+                map: map,
+                panel: "panel",
+            autoFitView: false
+        });
+
+        // 周边搜索方法（获取所有分页结果，隐藏高德panel，全部显示在左侧）
+        function searchNearby(center, type) {
+            // 创建新的搜索实例用于周边搜索（不再传panel参数）
+            var nearbySearch = new AMap.PlaceSearch({
+                type: type,
+                pageSize: 25, // 最大支持25
+                pageIndex: 1,
+                extensions: 'all',
+                map: map,
+                panel: null, // 不显示高德panel
+                autoFitView: false
+            });
+
+            // 隐藏右侧panel
+            document.getElementById('panel').style.display = 'none';
+
+            // 创建新的圆形范围
+            searchCircle = new AMap.Circle({
+                center: center,
+                radius: 1000,  // 1公里半径
+                strokeColor: "#3366FF",
+                strokeOpacity: 0.3,
+                strokeWeight: 3,
+                fillColor: "#FFA500",
+                fillOpacity: 0.1
+            });
+            searchCircle.setMap(map);
+            map.setZoomAndCenter(15, center);
+
+            // 递归获取所有分页POI
+            let allPois = [];
+            function fetchAllPages(pageIndex) {
+                nearbySearch.setPageIndex(pageIndex);
+                nearbySearch.searchNearBy("", center, 1000, function(status, result) {
+                    if (status === 'complete' && result.info === 'OK') {
+                        if (result.poiList && result.poiList.pois && result.poiList.pois.length > 0) {
+                            allPois = allPois.concat(result.poiList.pois);
+                            // 判断是否还有下一页
+                            const total = result.poiList.count;
+                            // 修复bug：pageSize应从nearbySearch.getPageSize()获取，若无则用25
+                            let pageSize = 25;
+                            if (typeof nearbySearch.getPageSize === 'function') {
+                                pageSize = nearbySearch.getPageSize();
+                            } else if (nearbySearch.options && nearbySearch.options.pageSize) {
+                                pageSize = nearbySearch.options.pageSize;
+                            }
+                            const totalPages = Math.ceil(total / pageSize);
+                            if (pageIndex < totalPages) {
+                                fetchAllPages(pageIndex + 1);
+                            } else {
+                                showPOIList(allPois, center);
+                                createConnections(allPois);
+                            }
+                        } else {
+                            if (allPois.length > 0) {
+                                showPOIList(allPois, center);
+                                createConnections(allPois);
+                            } else {
+                                document.getElementById('poiList').innerHTML = '<div class="text-muted">未找到相关设施</div>';
+                            }
+                        }
+                    } else {
+                        if (allPois.length > 0) {
+                            showPOIList(allPois, center);
+                            createConnections(allPois);
+                        } else {
+                            document.getElementById('poiList').innerHTML = '<div class="text-muted">搜索失败</div>';
+                        }
+                    }
+                });
+            }
+            fetchAllPages(1);
+        }
+        
+        // 简洁展示POI列表
+        function showPOIList(pois, center) {
+            const box = document.getElementById('poiList');
+            if (!pois || pois.length === 0) {
+                box.innerHTML = '<div class="text-muted">无场所</div>';
+                return;
+            }
+            function dist(c, l) {
+                const R = 6371000;
+                const toRad = d => d * Math.PI / 180;
+                const dLat = toRad(l.lat - c[1]);
+                const dLng = toRad(l.lng - c[0]);
+                const a = Math.sin(dLat/2)**2 + Math.cos(toRad(c[1]))*Math.cos(toRad(l.lat))*Math.sin(dLng/2)**2;
+                return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
+            }
+            box.innerHTML = pois.map(poi =>
+                `<div class='poi-item'>
+                    <div class='poi-name'>${poi.name}</div>
+                    <div class='poi-addr'>${poi.address||''}</div>
+                    <div class='poi-dist'>${center ? '距离: ' + (dist(center, poi.location) > 1000 ? (dist(center, poi.location)/1000).toFixed(2)+'公里' : Math.round(dist(center, poi.location))+'米') : ''}</div>
+                </div>`
+            ).join('');
+        }
+            
+            // 动态加载地点下拉选项
+        document.addEventListener('DOMContentLoaded', function() {
+            // 获取URL参数place
+            function getQueryParam(name) {
+                const url = new URL(window.location.href);
+                return url.searchParams.get(name);
+            }
+            const placeParam = getQueryParam('place');
+            fetch('/get_places')
+                .then(response => response.json())
+                .then(data => {
+                    const select = document.getElementById('keyword');
+                    select.innerHTML = '';
+                    if (data.success && Array.isArray(data.places)) {
+                        select.appendChild(new Option('请选择地点', ''));
+                        data.places.forEach(place => {
+                            select.appendChild(new Option(place, place));
+                        });
+                        // 如果URL有place参数，自动选中并触发搜索
+                        if (placeParam) {
+                            select.value = placeParam;
+                            setTimeout(function() {
+                                document.getElementById('searchBtn').click();
+                            }, 200); // 等待下拉框渲染
+                        }
+                    } else {
+                        select.appendChild(new Option('加载失败', ''));
+                    }
+                })
+                .catch(() => {
+                    const select = document.getElementById('keyword');
+                    select.innerHTML = '';
+                    select.appendChild(new Option('加载失败', ''));
+                });
+        });
+
+        // 绑定搜索按钮事件
+        document.getElementById('searchBtn').addEventListener('click', function() {
+            var keyword = document.getElementById('keyword').value.trim();
+            var poiType = document.getElementById('poiType').value;
+            if (!keyword) {
+                alert('请选择一个地点');
+                return;
+            }
+            // 清除之前的搜索结果和地图内容
+            clearMapContent();
+            // 显示左侧面板，隐藏右侧panel
+            document.getElementById('panel').style.display = 'none';
+            document.getElementById('poiList').innerHTML = '';
+            
+            console.log(`搜索关键词: ${keyword}, 设施类型: ${poiType}`);
+                
+            // 执行地点搜索
+            placeSearch.search(keyword, function(status, result) {
+                if (status === 'complete' && result.info === 'OK') {
+                    if (result.poiList && result.poiList.pois && result.poiList.pois.length > 0) {
+                        var firstPOI = result.poiList.pois[0];
+                        var center = [firstPOI.location.lng, firstPOI.location.lat];
+                        
+                        // 如果选择了设施类型，进行周边搜索
+                        if (poiType) {
+                            searchNearby(center, poiType);
+                        } else {
+                            // 如果只搜索地点，创建圆形范围并设置适当的缩放级别
+                            searchCircle = new AMap.Circle({
+                                center: center,
+                                radius: 1000,
+                                strokeColor: "#3366FF",
+                                strokeOpacity: 0.3,
+                                strokeWeight: 3,
+                                fillColor: "#FFA500",
+                                fillOpacity: 0.1
+                            });
+                            searchCircle.setMap(map);
+                            map.setZoomAndCenter(15, center);
+                        }
+                    } else {
+                        document.getElementById('panel').innerHTML = 
+                            '<div class="p-3">未找到相关地点</div>';
+                    }
+                } else {
+                    document.getElementById('panel').innerHTML = 
+                        '<div class="p-3">搜索失败，请重试</div>';
+                }
+            });
+        });
+    </script>
+    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+</body>
+
+</html>
