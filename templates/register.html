@@ -8,6 +8,7 @@
     <!-- 引入 Bootstrap CSS -->
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
     <style>
         .auth-container {
             max-width: 400px;
@@ -29,7 +30,7 @@
 </head>
 
 <body>
-    {% include 'navbar.html' %}
+    <div id="navbar"></div>
 
     <div class="container my-5">
         <div class="auth-container">

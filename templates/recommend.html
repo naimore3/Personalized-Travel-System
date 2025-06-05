@@ -6,8 +6,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>环球寻光记 - 推荐模块</title>
     <!-- 引入 Bootstrap CSS -->
-    <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
     <style>
         /* 可根据需要添加自定义样式 */
         .bd-placeholder-img {
@@ -27,7 +28,7 @@
 </head>
 
 <body>
-    {% include 'navbar.html' %}
+    <div id="navbar"></div>
 
     <!-- 主内容区域 -->
     <main>
@@ -155,4 +156,3 @@
     <script defer src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
 </body>
 </html>
-    

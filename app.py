@@ -1,12 +1,12 @@
 # app.py
 from flask import Flask, render_template, request, session, redirect, url_for, jsonify, flash
 from utils.excel_handler import ExcelHandler
-# app.py
-from flask import Flask, render_template, request, session, redirect, url_for, jsonify, flash
-from utils.excel_handler import ExcelHandler
 from utils.big_model import BigModel
 from utils.sorting_algorithm import get_top_ten_places, sort_diaries, kmp_search  # 导入排序方法和kmp_search
-from utils.search_graph import search_graph
+from utils.graph import Graph
+from utils.select_routing_planner import plan_route
+from utils.food_search import search_and_sort_foods, CUISINES, get_all_places
+from utils.indoor_path_finder import find_path_across_floors
 import re
 import os
 import uuid
@@ -16,19 +16,11 @@ from datetime import datetime
 from PIL import Image
 import numpy as np
 
-from utils.sorting_algorithm import get_top_ten_places  # 导入排序方法
-from utils.graph import Graph
-from utils.select_routing_planner import plan_route
-from utils.food_search import search_and_sort_foods, CUISINES, get_all_places
-from utils.indoor_path_finder import find_path_across_floors
-import re
-
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # 用于会话管理
 excel_handler = ExcelHandler()
-app.secret_key = 'your_secret_key'  # 用于会话管理
-excel_handler = ExcelHandler()
 big_model = BigModel()
+graph = Graph()  # 使用Graph类处理所有图相关操作
 
 # 添加 nl2br 过滤器
 @app.template_filter('nl2br')
@@ -52,7 +44,6 @@ def ensure_video_dir():
 
 # 确保上传目录存在
 ensure_upload_dir()
-graph = Graph()  # 使用Graph类处理所有图相关操作
 
 # 添加 x-content-type-options 头
 @app.after_request
@@ -95,10 +86,6 @@ def index():
     username = session.get('username')
     places = excel_handler.get_recommended_places()  # 获取所有地点
     top_ten_places = get_top_ten_places_heap(places)  # 用手写堆排序获取前十个地点
-    return render_template('index.html', username=username, top_ten_places=top_ten_places)
-    username = session.get('username')
-    places = excel_handler.get_recommended_places()  # 获取所有地点
-    top_ten_places = get_top_ten_places(places)  # 调用排序方法获取前十个地点
     return render_template('index.html', username=username, top_ten_places=top_ten_places)
 
 @app.route('/recommend')
@@ -150,8 +137,6 @@ def recommend():
                            personalized=personalized,
                            user_tags=user_tags,
                            personalized_message=personalized_message)
-    places = excel_handler.get_recommended_places()
-    return render_template('recommend.html', places=places)
 
 @app.route('/map')
 def map():
@@ -227,9 +212,8 @@ def punch():
             })
         return jsonify({'success': False, 'message': '添加日记失败'}), 500 
 
-    return render_template('punch.html', places=places, all_diaries=all_diaries)
-        # TODO: 实现打卡记录功能
-    return render_template('punch.html')
+    place_param = request.args.get('place')
+    return render_template('punch.html', places=places, all_diaries=all_diaries, place_param=place_param)
 
 @app.route('/search', methods=['GET', 'POST'])
 def search():
@@ -243,393 +227,68 @@ def search():
 def details(place_id):
     from_category = request.args.get('from_category') # 获取来源分类
 
-    place = excel_handler.get_place_details(place_id) # 首先获取地点详情，以便后续使用 place_name
-    if not place:
-        # 如果地点不存在，可以重定向到错误页面或推荐页面
+    try:
+        place = excel_handler.get_place_details(place_id) # 首先获取地点详情，以便后续使用 place_name
+    except Exception as e:
+        print(f"获取地点详情异常: {e}")
         flash('请求的地点不存在。', 'error')
         return redirect(url_for('recommend'))
 
-    if 'username' in session:
-        user = excel_handler.get_user_by_username(session['username'])
-        if user:
-            # 用户已登录，记录浏览历史（这将同时增加 View_Count）
-            if excel_handler.add_browse_history(user['id'], place['Place_Name']):
-                # 成功添加浏览历史后，更新用户标签
-                excel_handler.update_user_tags_based_on_browsing(user['id'])
-        else:
-            # 用户在 session 中但数据库中找不到，这是一种异常情况，仅增加浏览次数
-            excel_handler.increment_view_count(place_id)
-    else:
-        # 用户未登录，仅增加浏览次数
-        excel_handler.increment_view_count(place_id)
-    
-    # 重新获取地点详情，以确保 view_count 是最新的
-    place = excel_handler.get_place_details(place_id)
-    return render_template('details.html', place=place, came_from_category=from_category)
+    if not place:
+        flash('请求的地点不存在。', 'error')
+        return redirect(url_for('recommend'))
 
-@app.route('/register', methods=['GET', 'POST'])
-def register():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        
-        # 检查用户名是否已存在
-        if excel_handler.check_user_exists(username):
-            flash('用户名已存在，请选择其他用户名', 'error')
-            return redirect(url_for('register'))
-        
-        # 创建新用户
-        if excel_handler.create_user(username, password):
-            # 注册成功后自动登录
-            session['logged_in'] = True
-            session['username'] = username
-            flash('注册成功并已自动登录！', 'success')
-            return redirect(url_for('index'))
-        else:
-            flash('注册失败，请重试', 'error')
-            return redirect(url_for('register'))
-            
-    return render_template('register.html')
+    # 保证place字典字段完整，防止模板KeyError
+    default_fields = {
+        'Place_Name': '未知地点',
+        'Place_Category': '未知分类',
+        'Country': '未知国家',
+        'City': '未知城市',
+        'Tags': '',
+        'Description': '暂无描述',
+        'Rating': 0,
+        'View_Count': 0,
+        'Picture': 'images/default.jpg'
+    }
+    for k, v in default_fields.items():
+        if k not in place or place[k] is None:
+            place[k] = v
 
-@app.route('/login', methods=['GET', 'POST'])
-def login():
-    if request.method == 'POST':
-        username = request.form.get('username')
-        password = request.form.get('password')
-        
-        if not username or not password:
-            flash('用户名和密码不能为空', 'error')
-            return redirect(url_for('login'))
-        
-        try:
-            # 先检查用户是否存在
-            if not excel_handler.check_user_exists(username):
-                flash('用户名不存在，请先注册', 'error')
-                return redirect(url_for('login'))
-            
-            # 再验证密码
-            if excel_handler.check_user(username, password):
-                session['username'] = username
-                session['logged_in'] = True
-                flash('登录成功！', 'success')
-                return redirect(url_for('index'))
+    try:
+        if 'username' in session:
+            user = excel_handler.get_user_by_username(session['username'])
+            if user:
+                try:
+                    excel_handler.add_browse_history(user['id'], place['Place_Name'])
+                    excel_handler.update_user_tags_based_on_browsing(user['id'])
+                except Exception as e:
+                    print(f"添加浏览历史或更新标签异常: {e}")
             else:
-                flash('密码错误', 'error')
-                return redirect(url_for('login'))
-                
-        except Exception as e:
-            print(f"登录时出错: {e}")
-            flash('登录过程中发生错误，请稍后重试', 'error')
-            return redirect(url_for('login'))
-            
-    return render_template('login.html')
-
-@app.route('/logout')
-def logout():
-    session.pop('username', None)
-    return redirect(url_for('index'))
-
-@app.route('/update_graph', methods=['POST'])
-def update_graph():
-    """处理搜索结果点的连接关系"""
-    try:
-        data = request.json
-        if not data or 'pois' not in data:
-            return jsonify({'error': 'No POI data provided'}), 400
-        
-        # 打印接收到的数据，用于调试
-        print("Received POI data:", data['pois'])
-        
-        # 使用图处理类处理连接关系
-        connections = search_graph.add_points(data['pois'])
-        
-        # 打印生成的连接数据，用于调试
-        print("Generated connections:", connections)
-        
-        return jsonify({
-            'connections': connections
-        })
-    except Exception as e:
-        print("Error in update_graph:", str(e))  # 打印错误信息
-        return jsonify({'error': str(e)}), 500
-
-@app.route('/profile')
-def profile():
-    if 'username' not in session:
-        return redirect(url_for('login'))
-    
-    user = excel_handler.get_user_by_username(session['username'])
-    if not user:
-        return redirect(url_for('logout'))
-
-    user_tags = excel_handler.get_user_tags(user['id'])
-    user_diaries = excel_handler.get_user_diaries(user['id'])
-    browse_history = excel_handler.get_browse_history(user['id'])
-
-    return render_template('profile.html',
-                         username=user['username'],
-                         user_id=user['id'],
-                         user_tags=user_tags,
-                         user_diaries=user_diaries,
-                         browse_history=browse_history)
-
-@app.route('/add_tag', methods=['POST'])
-def add_tag():
-    if 'username' not in session:
-        return jsonify({'success': False, 'message': '请先登录'}), 401
-    
-    tag = request.form.get('tag')
-    if not tag:
-        return jsonify({'success': False, 'message': '标签不能为空'}), 400
-
-    user = excel_handler.get_user_by_username(session['username'])
-    if not user:
-        return jsonify({'success': False, 'message': '用户不存在'}), 404
-
-    if excel_handler.add_user_tag(user['id'], tag):
-        return jsonify({'success': True, 'message': '添加标签成功'})
-    return jsonify({'success': False, 'message': '添加标签失败'}), 500
-
-@app.route('/add_diary', methods=['POST'])
-def add_diary():
-    if 'username' not in session:
-        return jsonify({'success': False, 'message': '请先登录'}), 401
-    
-    title = request.form.get('title')
-    content = request.form.get('content')
-    
-    if not title or not content:
-        return jsonify({'success': False, 'message': '标题和内容不能为空'}), 400
-
-    user = excel_handler.get_user_by_username(session['username'])
-    if not user:
-        return jsonify({'success': False, 'message': '用户不存在'}), 404
-
-    if excel_handler.add_user_diary(user['id'], title, content):
-        return jsonify({'success': True, 'message': '添加日记成功'})
-    return jsonify({'success': False, 'message': '添加日记失败'}), 500
-
-@app.route('/add_history', methods=['POST'])
-def add_history():
-    if 'username' not in session:
-        return jsonify({'success': False, 'message': '请先登录'}), 401
-    
-    place_name = request.form.get('place_name')
-    if not place_name:
-        return jsonify({'success': False, 'message': '地点名称不能为空'}), 400
-
-    user = excel_handler.get_user_by_username(session['username'])
-    if not user:
-        return jsonify({'success': False, 'message': '用户不存在'}), 404
-
-    if excel_handler.add_browse_history(user['id'], place_name):
-        return jsonify({'success': True, 'message': '添加浏览记录成功'})
-    return jsonify({'success': False, 'message': '添加浏览记录失败'}), 500
-
-@app.route('/diary_detail/<int:diary_id>')
-def diary_detail(diary_id):
-    try:
-        # 检查用户是否登录
-        if 'username' not in session:
-            flash('请先登录', 'warning')
-            return redirect(url_for('login'))
-
-        # 获取日记详情
-        diary = excel_handler.get_diary_by_id(diary_id)
-        if not diary:
-            flash('日记不存在', 'error')
-            return redirect(url_for('punch'))
-            #return redirect(url_for('profile'))
-
-        # 增加浏览量
-        excel_handler.increment_diary_views(diary_id)
-        
-        # 获取用户评分
-        user = excel_handler.get_user_by_username(session['username'])
-        if not user:
-            flash('用户信息错误', 'error')
-            return redirect(url_for('login'))
-            
-        user_rating = excel_handler.get_diary_rating(diary_id, user['id'])
-        
-        return render_template('diary_detail.html', 
-                            diary=diary, 
-                            user_rating=user_rating)
-                            
-    except Exception as e:
-        print(f"查看日记详情出错: {str(e)}")
-        flash('查看日记详情时出错', 'error')
-        return redirect(url_for('profile'))
-
-@app.route('/rate_diary', methods=['POST'])
-def rate_diary():
-    if 'username' not in session:
-        return jsonify({'success': False, 'message': '请先登录'}), 401
-    
-    diary_id = request.form.get('diary_id')
-    rating = request.form.get('rating')
-    
-    if not diary_id or not rating:
-        return jsonify({'success': False, 'message': '参数不完整'}), 400
-    
-    try:
-        diary_id = int(diary_id)
-        rating = float(rating)
-    except ValueError:
-        return jsonify({'success': False, 'message': '参数格式错误'}), 400
-    
-    user = excel_handler.get_user_by_username(session['username'])
-    success, message = excel_handler.rate_diary(diary_id, user['id'], rating)
-    
-    return jsonify({'success': success, 'message': message})
-
-@app.route('/sort_diaries')
-def sort_diaries_route():
-    """处理日记排序和搜索请求"""
-    try:
-        sort_by = request.args.get('sort_by', 'views')  # 默认按热度排序
-        search_text = request.args.get('search_text', '')  # 搜索文本
-        search_type = request.args.get('search_type', 'all')  # 搜索类型
-        
-        print(f"排序请求参数: sort_by={sort_by}, search_text={search_text}, search_type={search_type}")
-        
-        if sort_by not in ['views', 'rating']:
-            print(f"无效的排序选项: {sort_by}")
-            return jsonify({'success': False, 'message': '无效的排序选项'}), 400
-            
-        if search_type not in ['all', 'place', 'title', 'content']:
-            print(f"无效的搜索类型: {search_type}")
-            return jsonify({'success': False, 'message': '无效的搜索类型'}), 400
-            
-        # 获取所有日记
-        all_diaries = excel_handler.get_all_diaries()
-        print(f"获取到的日记数量: {len(all_diaries)}")
-        
-        if not all_diaries:
-            print("没有找到任何日记")
-            return jsonify({
-                'success': True,
-                'diaries': []
-            })
-        
-        # 检查日记内容是否成功解压
-        for diary in all_diaries:
-            if not diary.get('content'):
-                print(f"警告：日记ID {diary.get('id')} 的内容解压失败")
-                diary['content'] = "内容读取失败"
-        
-        # 使用自定义排序算法进行排序和搜索
-        sorted_diaries = sort_diaries(all_diaries, sort_by, search_text, search_type)
-        print(f"排序后的日记数量: {len(sorted_diaries)}")
-        
-        return jsonify({
-            'success': True,
-            'diaries': sorted_diaries
-        })
-    except Exception as e:
-        print(f"排序日记时出错: {e}")
-        import traceback
-        print(traceback.format_exc())
-        return jsonify({'success': False, 'message': '排序失败'}), 500
-
-def generate_travel_video(image_path, output_path, duration=4):
-    """使用AI生成旅游动画视频"""
-    try:
-        # 读取原始图片
-        img = cv2.imread(image_path)
-        if img is None:
-            raise Exception("无法读取图片")
-
-        # 转换为RGB格式
-        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
-        
-        # 创建帧序列
-        frames = []
-        num_frames = int(duration * 30)  # 30fps
-        
-        # 生成缩放和平移动画效果
-        for i in range(num_frames):
-            # 计算缩放因子和平移量
-            scale = 1 + 0.1 * np.sin(i / num_frames * np.pi)
-            dx = int(50 * np.sin(i / num_frames * 2 * np.pi))
-            dy = int(30 * np.cos(i / num_frames * 2 * np.pi))
-            
-            # 创建变换矩阵
-            M = np.float32([[scale, 0, dx], [0, scale, dy]])
-            
-            # 应用变换
-            height, width = img.shape[:2]
-            frame = cv2.warpAffine(img, M, (width, height))
-            
-            # 添加渐变效果
-            alpha = 0.7 + 0.3 * np.sin(i / num_frames * np.pi)
-            frame = cv2.addWeighted(frame, alpha, img, 1-alpha, 0)
-            
-            frames.append(frame)
-        
-        # 创建视频
-        clip = ImageSequenceClip(frames, fps=30)
-        clip.write_videofile(output_path, codec='libx264', audio=False)
-        
-        return True
-    except Exception as e:
-        print(f"生成视频时出错: {e}")
-        return False
-
-@app.route('/generate_diary_video', methods=['POST'])
-def generate_diary_video():
-    """处理视频生成请求"""
-    if 'username' not in session:
-        return jsonify({'success': False, 'message': '请先登录'}), 401
-    
-    try:
-        data = request.get_json()
-        diary_id = data.get('diary_id')
-        
-        if not diary_id:
-            return jsonify({'success': False, 'message': '参数不完整'}), 400
-        
-        # 获取日记信息
-        diary = excel_handler.get_diary_by_id(diary_id)
-        if not diary:
-            return jsonify({'success': False, 'message': '日记不存在'}), 404
-        
-        if not diary.get('picture'):
-            return jsonify({'success': False, 'message': '日记没有图片，无法生成视频'}), 400
-        
-        # 检查视频状态
-        video_status = excel_handler.get_diary_video_status(diary_id)
-        if video_status and video_status['status'] == 'processing':
-            return jsonify({'success': False, 'message': '视频正在生成中，请稍候'}), 400
-        
-        # 更新状态为处理中
-        excel_handler.update_diary_video(diary_id, None, 'processing')
-        
-        # 准备文件路径
-        image_path = os.path.join('static', diary['picture'])
-        video_filename = f"{uuid.uuid4()}.mp4"
-        video_path = os.path.join(ensure_video_dir(), video_filename)
-        
-        # 生成视频
-        if generate_travel_video(image_path, video_path):
-            # 更新视频信息
-            excel_handler.update_diary_video(diary_id, video_filename, 'completed')
-            return jsonify({
-                'success': True,
-                'message': '视频生成成功',
-                'video_url': video_filename
-            })
+                try:
+                    excel_handler.increment_view_count(place_id)
+                except Exception as e:
+                    print(f"增加浏览次数异常: {e}")
         else:
-            excel_handler.update_diary_video(diary_id, None, 'failed')
-            return jsonify({'success': False, 'message': '视频生成失败'}), 500
-            
+            try:
+                excel_handler.increment_view_count(place_id)
+            except Exception as e:
+                print(f"增加浏览次数异常: {e}")
     except Exception as e:
-        print(f"处理视频生成请求时出错: {e}")
-        if diary_id:
-            excel_handler.update_diary_video(diary_id, None, 'failed')
-        return jsonify({'success': False, 'message': '服务器错误'}), 500
-    place = excel_handler.get_place_details(place_id)
-    return render_template('details.html', place=place)
+        print(f"用户相关操作异常: {e}")
+
+    # 重新获取地点详情，以确保 view_count 是最新的
+    try:
+        place = excel_handler.get_place_details(place_id)
+    except Exception as e:
+        print(f"重新获取地点详情异常: {e}")
+    if not place:
+        place = default_fields.copy()
+
+    for k, v in default_fields.items():
+        if k not in place or place[k] is None:
+            place[k] = v
+
+    return render_template('details.html', place=place, came_from_category=from_category)
 
 @app.route('/register', methods=['GET', 'POST'])
 def register():
@@ -681,7 +340,8 @@ def login():
             session['username'] = username
             return jsonify({
                 'success': True,
-                'message': '登录成功！'
+                'message': '登录成功！',
+                'username': username
             })
         else:
             return jsonify({
@@ -958,6 +618,211 @@ def api_indoor_path():
     if not path:
         return jsonify({'success': False, 'message': '未找到可行路径'}), 200
     return jsonify({'success': True, 'path': path})
+
+@app.route('/diary_detail/<int:diary_id>')
+def diary_detail(diary_id):
+    try:
+        # 检查用户是否登录
+        if 'username' not in session:
+            flash('请先登录', 'warning')
+            return redirect(url_for('login'))
+
+        # 获取日记详情
+        diary = excel_handler.get_diary_by_id(diary_id)
+        if not diary:
+            flash('日记不存在', 'error')
+            return redirect(url_for('punch'))
+            #return redirect(url_for('profile'))
+
+        # 增加浏览量
+        excel_handler.increment_diary_views(diary_id)
+        
+        # 获取用户评分
+        user = excel_handler.get_user_by_username(session['username'])
+        if not user:
+            flash('用户信息错误', 'error')
+            return redirect(url_for('login'))
+            
+        user_rating = excel_handler.get_diary_rating(diary_id, user['id'])
+        
+        return render_template('diary_detail.html', 
+                            diary=diary, 
+                            user_rating=user_rating)
+                            
+    except Exception as e:
+        print(f"查看日记详情出错: {str(e)}")
+        flash('查看日记详情时出错', 'error')
+        return redirect(url_for('profile'))
+
+@app.route('/rate_diary', methods=['POST'])
+def rate_diary():
+    if 'username' not in session:
+        return jsonify({'success': False, 'message': '请先登录'}), 401
+    
+    diary_id = request.form.get('diary_id')
+    rating = request.form.get('rating')
+    
+    if not diary_id or not rating:
+        return jsonify({'success': False, 'message': '参数不完整'}), 400
+    
+    try:
+        diary_id = int(diary_id)
+        rating = float(rating)
+    except ValueError:
+        return jsonify({'success': False, 'message': '参数格式错误'}), 400
+    
+    user = excel_handler.get_user_by_username(session['username'])
+    success, message = excel_handler.rate_diary(diary_id, user['id'], rating)
+    
+    return jsonify({'success': success, 'message': message})
+
+@app.route('/sort_diaries')
+def sort_diaries_route():
+    """处理日记排序和搜索请求"""
+    try:
+        sort_by = request.args.get('sort_by', 'views')  # 默认按热度排序
+        search_text = request.args.get('search_text', '')  # 搜索文本
+        search_type = request.args.get('search_type', 'all')  # 搜索类型
+        
+        print(f"排序请求参数: sort_by={sort_by}, search_text={search_text}, search_type={search_type}")
+        
+        if sort_by not in ['views', 'rating']:
+            print(f"无效的排序选项: {sort_by}")
+            return jsonify({'success': False, 'message': '无效的排序选项'}), 400
+            
+        if search_type not in ['all', 'place', 'title', 'content']:
+            print(f"无效的搜索类型: {search_type}")
+            return jsonify({'success': False, 'message': '无效的搜索类型'}), 400
+            
+        # 获取所有日记
+        all_diaries = excel_handler.get_all_diaries()
+        print(f"获取到的日记数量: {len(all_diaries)}")
+        
+        if not all_diaries:
+            print("没有找到任何日记")
+            return jsonify({
+                'success': True,
+                'diaries': []
+            })
+        
+        # 检查日记内容是否成功解压
+        for diary in all_diaries:
+            if not diary.get('content'):
+                print(f"警告：日记ID {diary.get('id')} 的内容解压失败")
+                diary['content'] = "内容读取失败"
+        
+        # 使用自定义排序算法进行排序和搜索
+        sorted_diaries = sort_diaries(all_diaries, sort_by, search_text, search_type)
+        print(f"排序后的日记数量: {len(sorted_diaries)}")
+        
+        return jsonify({
+            'success': True,
+            'diaries': sorted_diaries
+        })
+    except Exception as e:
+        print(f"排序日记时出错: {e}")
+        import traceback
+        print(traceback.format_exc())
+        return jsonify({'success': False, 'message': '排序失败'}), 500
+
+def generate_travel_video(image_path, output_path, duration=4):
+    """使用AI生成旅游动画视频"""
+    try:
+        # 读取原始图片
+        import cv2
+        from moviepy.editor import ImageSequenceClip
+        img = cv2.imread(image_path)
+        if img is None:
+            raise Exception("无法读取图片")
+
+        # 转换为RGB格式
+        img = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
+        
+        # 创建帧序列
+        frames = []
+        num_frames = int(duration * 30)  # 30fps
+        
+        # 生成缩放和平移动画效果
+        for i in range(num_frames):
+            # 计算缩放因子和平移量
+            scale = 1 + 0.1 * np.sin(i / num_frames * np.pi)
+            dx = int(50 * np.sin(i / num_frames * 2 * np.pi))
+            dy = int(30 * np.cos(i / num_frames * 2 * np.pi))
+            
+            # 创建变换矩阵
+            M = np.float32([[scale, 0, dx], [0, scale, dy]])
+            
+            # 应用变换
+            height, width = img.shape[:2]
+            frame = cv2.warpAffine(img, M, (width, height))
+            
+            # 添加渐变效果
+            alpha = 0.7 + 0.3 * np.sin(i / num_frames * np.pi)
+            frame = cv2.addWeighted(frame, alpha, img, 1-alpha, 0)
+            
+            frames.append(frame)
+        
+        # 创建视频
+        clip = ImageSequenceClip(frames, fps=30)
+        clip.write_videofile(output_path, codec='libx264', audio=False)
+        
+        return True
+    except Exception as e:
+        print(f"生成视频时出错: {e}")
+        return False
+
+@app.route('/generate_diary_video', methods=['POST'])
+def generate_diary_video():
+    """处理视频生成请求"""
+    if 'username' not in session:
+        return jsonify({'success': False, 'message': '请先登录'}), 401
+    
+    try:
+        data = request.get_json()
+        diary_id = data.get('diary_id')
+        
+        if not diary_id:
+            return jsonify({'success': False, 'message': '参数不完整'}), 400
+        
+        # 获取日记信息
+        diary = excel_handler.get_diary_by_id(diary_id)
+        if not diary:
+            return jsonify({'success': False, 'message': '日记不存在'}), 404
+        
+        if not diary.get('picture'):
+            return jsonify({'success': False, 'message': '日记没有图片，无法生成视频'}), 400
+        
+        # 检查视频状态
+        video_status = excel_handler.get_diary_video_status(diary_id)
+        if video_status and video_status['status'] == 'processing':
+            return jsonify({'success': False, 'message': '视频正在生成中，请稍候'}), 400
+        
+        # 更新状态为处理中
+        excel_handler.update_diary_video(diary_id, None, 'processing')
+        
+        # 准备文件路径
+        image_path = os.path.join('static', diary['picture'])
+        video_filename = f"{uuid.uuid4()}.mp4"
+        video_path = os.path.join(ensure_video_dir(), video_filename)
+        
+        # 生成视频
+        if generate_travel_video(image_path, video_path):
+            # 更新视频信息
+            excel_handler.update_diary_video(diary_id, video_filename, 'completed')
+            return jsonify({
+                'success': True,
+                'message': '视频生成成功',
+                'video_url': video_filename
+            })
+        else:
+            excel_handler.update_diary_video(diary_id, None, 'failed')
+            return jsonify({'success': False, 'message': '视频生成失败'}), 500
+            
+    except Exception as e:
+        print(f"处理视频生成请求时出错: {e}")
+        if 'diary_id' in locals():
+            excel_handler.update_diary_video(diary_id, None, 'failed')
+        return jsonify({'success': False, 'message': '服务器错误'}), 500
 
 if __name__ == '__main__':
     app.run(debug=True)

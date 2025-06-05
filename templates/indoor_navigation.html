@@ -6,6 +6,7 @@
     <title>室内导航</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
     <style>
         body { background: #f8f9fa; }
         .container-flex { display: flex; height: 90vh; }
@@ -32,7 +33,7 @@
     </style>
 </head>
 <body>
-    {% include 'navbar.html' %}
+    <div id="navbar"></div>
     <div class="container-flex">
         <div class="sidebar">
             <h4>室内导航</h4>
@@ -61,5 +62,6 @@
         </div>
     </div>
     <script src="{{ url_for('static', filename='js/indoor_navigation.js') }}"></script>
+    <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
 </body>
 </html>

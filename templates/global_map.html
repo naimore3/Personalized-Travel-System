@@ -7,10 +7,11 @@
     <title>环球寻光记 - 环球寻光</title>
     <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
 </head>
 
 <body>
-    {% include 'navbar.html' %}
+    <div id="navbar"></div>
 
     <div class="container my-4">
         <div class="row justify-content-center">
@@ -27,4 +28,4 @@
     <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
 </body>
 
-</html> 
+</html>

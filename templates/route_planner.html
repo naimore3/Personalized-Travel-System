@@ -5,6 +5,9 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>游览路径规划</title>
     <link rel="stylesheet" href="https://a.amap.com/jsapi_demos/static/demo-center/css/demo-center.css" />
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
     <style>
         body {
             margin: 0;
@@ -212,6 +215,7 @@
     </style>
 </head>
 <body>
+    <div id="navbar"></div>
     <div class="route-container">
         <div class="mode-buttons">
             <button class="mode-button" onclick="changeMode('distance')" id="distanceBtn">最短距离</button>

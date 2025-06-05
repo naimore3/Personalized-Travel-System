@@ -9,6 +9,7 @@
     <!-- 引入 Bootstrap CSS -->
     <link href="{{ url_for('static', filename='css/bootstrap.min.css') }}" rel="stylesheet">
     <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/5.15.4/css/all.min.css">
     <style>
         .place-header {
@@ -104,7 +105,7 @@
 </head>
 
 <body>
-    {% include 'navbar.html' %}
+    <div id="navbar"></div>
 
     <main class="container mt-5">
         <div class="place-header">
@@ -162,10 +163,10 @@
             </div>
 
             <div class="action-buttons">
-                <a href="{{ url_for('punch') }}" class="btn btn-primary btn-custom">
+                <a href="{{ url_for('punch', place=place.Place_Name|urlencode) }}" class="btn btn-primary btn-custom">
                     <i class="fas fa-camera"></i> 打卡
                 </a>
-                <a href="{{ url_for('map') }}" class="btn btn-outline-primary btn-custom">
+                <a href="{{ url_for('search') }}?place={{ place.Place_Name|urlencode }}" class="btn btn-outline-primary btn-custom">
                     <i class="fas fa-map-marked-alt"></i> 查看地图
                 </a>
                 <a href="{{ url_for('recommend') }}" class="btn btn-outline-secondary btn-custom">
