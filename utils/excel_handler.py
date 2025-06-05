@@ -759,6 +759,17 @@ class ExcelHandler:
             print(f"更新用户 {user_id} 标签时出错: {e}")
             return False
 
+    def get_place_by_name(self, place_name):
+        """通过地点名称获取地点详情"""
+        try:
+            df = pd.read_excel(self.places_file)
+            place = df[df['Place_Name'] == place_name]
+            if not place.empty:
+                return place.iloc[0].to_dict()
+            return None
+        except Exception as e:
+            print(f"通过名称获取地点详情时出错: {e}")
+            return None
 def save_to_excel(filepath, data):
     if not os.path.exists(filepath):
         df = pd.DataFrame(columns=['username', 'place', 'title', 'content', 'picture', 'timestamp'])

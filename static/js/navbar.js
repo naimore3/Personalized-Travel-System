@@ -55,6 +55,9 @@ function renderNavbar(activePage) {
                             <li><a class="dropdown-item" href="/food_discovery">美食发现</a></li>
                         </ul>
                     </li>
+                    <li class="nav-item">
+                        <a class="nav-link${activePage==='text_fantasy'?' active':''}" href="/text_fantasy">文字幻想</a>
+                    </li>
                 </ul>
                 <ul class="navbar-nav">${rightNav}</ul>
             </div>
@@ -86,6 +89,7 @@ function getActivePage() {
     if(path.startsWith('/food_discovery')) return 'food_discovery';
     if(path.startsWith('/profile')) return 'profile';
     if(path.startsWith('/login')) return 'login';
+    if(path.startsWith('/text_fantasy')) return 'text_fantasy';
     return '';
 }
 

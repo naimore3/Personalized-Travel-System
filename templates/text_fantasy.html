@@ -1,0 +1,100 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>文字幻想 - 视频生成</title>
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/bootstrap.min.css') }}">
+    <link rel="stylesheet" href="{{ url_for('static', filename='css/style.css') }}">
+    <script src="https://cdn.jsdelivr.net/npm/axios/dist/axios.min.js"></script>
+    <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
+</head>
+<body>
+    <div id="navbar"></div>
+    <div class="container my-5">
+        <h2 class="text-center mb-4">文字幻想 · 视频生成</h2>
+        <div class="row justify-content-center">
+            <div class="col-md-6">
+                <div class="card p-4 shadow-sm">
+                    <div class="mb-3">
+                        <label for="placeSelect" class="form-label">选择地点</label>
+                        <select class="form-select" id="placeSelect">
+                            <option value="">加载中...</option>
+                        </select>
+                    </div>
+                    <div class="mb-3">
+                        <label for="descInput" class="form-label">视频描述（可选）</label>
+                        <input type="text" class="form-control" id="descInput" placeholder="如：天空的云飘动着，路上的车辆行驶">
+                    </div>
+                    <button class="btn btn-primary w-100" id="generateBtn">生成视频</button>
+                    <div id="videoStatus" class="mt-3"></div>
+                    <div id="videoResult" class="mt-3"></div>
+                </div>
+            </div>
+        </div>
+    </div>
+<script>
+// 动态加载地点
+axios.get('/get_places').then(res => {
+    const select = document.getElementById('placeSelect');
+    select.innerHTML = '';
+    if(res.data.success && Array.isArray(res.data.places)){
+        select.appendChild(new Option('请选择地点', ''));
+        res.data.places.forEach(place => {
+            select.appendChild(new Option(place, place));
+        });
+    }else{
+        select.appendChild(new Option('加载失败', ''));
+    }
+});
+
+// 生成视频按钮事件
+let pollingTimer = null;
+document.getElementById('generateBtn').onclick = function(){
+    const place = document.getElementById('placeSelect').value;
+    const desc = document.getElementById('descInput').value.trim();
+    if(!place){
+        alert('请选择地点');
+        return;
+    }
+    document.getElementById('videoStatus').innerHTML = '<div class="loading">正在创建视频任务...</div>';
+    document.getElementById('videoResult').innerHTML = '';
+    axios.post('/generate_video', {place, desc}).then(res => {
+        if(res.data.success){
+            pollStatus(res.data.task_id);
+        }else{
+            document.getElementById('videoStatus').innerHTML = '<div class="text-danger">任务创建失败</div>';
+        }
+    }).catch(()=>{
+        document.getElementById('videoStatus').innerHTML = '<div class="text-danger">任务创建失败</div>';
+    });
+};
+
+function pollStatus(taskId){
+    document.getElementById('videoStatus').innerHTML = '<div class="loading">视频生成中，请稍候...</div>';
+    pollingTimer = setInterval(()=>{
+        axios.get('/check_video_status?task_id='+taskId).then(res=>{
+            if(res.data.status==='succeeded'){
+                clearInterval(pollingTimer);
+                // 新增：判断video_url是否有效且为mp4
+                const url = res.data.video_url;
+                if(url && (url.endsWith('.mp4') || url.includes('.mp4'))){
+                    document.getElementById('videoStatus').innerHTML = '<span class="text-success">视频生成成功！</span>';
+                    document.getElementById('videoResult').innerHTML = `<video src="${url}" controls style="width:100%;max-width:480px;"></video>`;
+                }else if(url){
+                    document.getElementById('videoStatus').innerHTML = '<span class="text-warning">视频生成成功，但格式暂不支持预览</span>';
+                    document.getElementById('videoResult').innerHTML = `<a href="${url}" target="_blank">点击下载/查看原视频</a>`;
+                }else{
+                    document.getElementById('videoStatus').innerHTML = '<span class="text-danger">视频生成成功，但未获取到视频地址</span>';
+                }
+            }else if(res.data.status==='failed'){
+                clearInterval(pollingTimer);
+                document.getElementById('videoStatus').innerHTML = '<span class="text-danger">视频生成失败</span>';
+            }
+        });
+    }, 2000);
+}
+</script>
+<script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+</body>
+</html>

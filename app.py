@@ -23,6 +23,7 @@ import base64
 import json
 import websocket  # 新增依赖
 import ssl
+import pandas as pd
 
 app = Flask(__name__)
 app.secret_key = 'your_secret_key'  # 用于会话管理
@@ -508,7 +509,6 @@ def domestic_map():
 @app.route('/global_map')
 def global_map():
     """环球地图页面，动态读取国家数据"""
-    import pandas as pd
     # 完善国家中文名到国旗代码映射（ISO 3166-1 alpha-2）
     country_flag_map = {
         '中国': 'cn', '印度': 'in', '日本': 'jp', '韩国': 'kr', '泰国': 'th', '缅甸': 'mm',
@@ -912,6 +912,71 @@ def ask_ai():
     except Exception as e:
         print(f"AI接口调用异常: {e}")
         return jsonify({'answer': 'AI服务异常，请稍后重试。'}), 500
+
+@app.route('/text_fantasy')
+def text_fantasy():
+    # 读取places表格
+    df = pd.read_excel('data/places.xlsx')
+    places = df['name'].dropna().unique().tolist() if 'name' in df.columns else df.iloc[:,0].dropna().unique().tolist()
+    return render_template('text_fantasy.html', places=places)
+
+@app.route('/generate_video', methods=['POST'])
+def generate_video():
+    data = request.get_json()
+    place = data.get('place')
+    desc = data.get('desc') or ''
+    # 新增：查找地点详细介绍
+    place_info = excel_handler.get_place_by_name(place) if place else None
+    place_desc = place_info['Description'] if place_info and 'Description' in place_info else ''
+    # 优先拼接详细介绍
+    prompt = f"{place}，简介：{place_desc}。{desc} --resolution 720p --duration 5 --camerafixed false"
+    payload = {
+        "model": "doubao-seedance-1-0-lite-i2v-250428",
+        "content": [
+            {"type": "text", "text": prompt},
+            {"type": "image_url", "image_url": {"url": "https://ark-project.tos-cn-beijing.volces.com/doc_image/see_i2v.jpeg"}}
+        ]
+    }
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer 88653e63-3ec4-490a-aa56-8660983d7c44"
+    }
+    try:
+        resp = requests.post('https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks', json=payload, headers=headers, timeout=20)
+        if resp.status_code == 200 and resp.json().get('id'):
+            return jsonify({'success': True, 'task_id': resp.json()['id']})
+        else:
+            return jsonify({'success': False, 'msg': resp.text})
+    except Exception as e:
+        return jsonify({'success': False, 'msg': str(e)})
+
+@app.route('/check_video_status')
+def check_video_status():
+    task_id = request.args.get('task_id')
+    headers = {
+        "Content-Type": "application/json",
+        "Authorization": "Bearer 88653e63-3ec4-490a-aa56-8660983d7c44"
+    }
+    try:
+        resp = requests.get(f'https://ark.cn-beijing.volces.com/api/v3/contents/generations/tasks/{task_id}', headers=headers, timeout=10)
+        if resp.status_code == 200:
+            data = resp.json()
+            print('视频生成API返回：', data)  # 调试用，查看API返回内容
+            status = data.get('status')
+            video_url = ''
+            # 兼容content.video_url
+            if status == 'succeeded':
+                result = data.get('result', {})
+                content = data.get('content', {})
+                # 优先result.video_url，其次content.video_url
+                video_url = result.get('video_url') if isinstance(result, dict) else ''
+                if not video_url and isinstance(content, dict):
+                    video_url = content.get('video_url', '')
+            return jsonify({'status': status, 'video_url': video_url})
+        else:
+            return jsonify({'status': 'failed'})
+    except Exception as e:
+        return jsonify({'status': 'failed', 'msg': str(e)})
 
 if __name__ == '__main__':
     app.run(debug=True)
