@@ -109,7 +109,7 @@
 
     <main class="container mt-5">
         <div class="place-header">
-            <img src="{{ url_for('static', filename=place.get('Picture', 'images/default.jpg')) }}" alt="{{ place.Place_Name }}">
+            <img src="{{ url_for('static', filename='images/'+place.Picture) }}">
             <div class="place-header-content">
                 <h1>{{ place.Place_Name }}</h1>
                 <div class="d-flex flex-wrap gap-2">

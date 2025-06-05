@@ -10,21 +10,50 @@
     <script src="{{ url_for('static', filename='js/navbar.js') }}"></script>
     <style>
         .profile-container {
-            max-width: 800px;
+            max-width: 1100px;
             margin: 0 auto;
             padding: 20px;
         }
         .tag {
             display: inline-block;
-            padding: 0.25em 0.6em;
+            padding: 0.25em 0.8em;
             margin: 0.2em;
             border-radius: 15px;
-            background-color: #e9ecef;
-            font-size: 0.9em;
+            background: linear-gradient(90deg, #e9ecef 60%, #f8f9fa 100%);
+            font-size: 0.95em;
+            color: #495057;
+            box-shadow: 0 1px 2px rgba(0,0,0,0.03);
+            transition: background 0.3s;
+        }
+        .tag:hover {
+            background: #d1e7dd;
+            color: #198754;
         }
         .history-item {
             border-bottom: 1px solid #eee;
-            padding: 10px 0;
+            padding: 10px 0 6px 0;
+            transition: background 0.2s;
+        }
+        .history-item:hover {
+            background: #f8f9fa;
+        }
+        .card {
+            border-radius: 1rem !important;
+        }
+        .diary-card:hover {
+            box-shadow: 0 4px 16px rgba(33,37,41,0.08);
+            transform: translateY(-2px) scale(1.01);
+            transition: all 0.2s;
+        }
+        .card-title {
+            font-weight: 600;
+        }
+        .card-header {
+            border-radius: 1rem 1rem 0 0 !important;
+        }
+        @media (max-width: 991.98px) {
+            .profile-container { max-width: 98vw; }
+            .card { margin-bottom: 1.5rem; }
         }
     </style>
 </head>
@@ -35,18 +64,17 @@
     <div class="container my-5">
         <div class="profile-container">
             <div class="row">
+                <!-- 左侧：用户信息、兴趣标签、浏览记录 -->
                 <div class="col-md-4">
-                    <div class="card">
+                    <div class="card shadow-sm mb-4 rounded-4">
                         <div class="card-body text-center">
-                            <h5 class="card-title">{{ username }}</h5>
+                            <h5 class="card-title fw-bold">{{ username }}</h5>
                             <p class="card-text text-muted">用户ID: {{ user_id }}</p>
                         </div>
                     </div>
-                </div>
-                <div class="col-md-8">
-                    <div class="card mb-4">
-                        <div class="card-header">
-                            <h5 class="mb-0">兴趣标签</h5>
+                    <div class="card mb-4 shadow-sm rounded-4">
+                        <div class="card-header bg-light border-0">
+                            <h5 class="mb-0 fw-semibold">兴趣标签</h5>
                         </div>
                         <div class="card-body">
                             {% if user_tags %}
@@ -58,44 +86,9 @@
                             {% endif %}
                         </div>
                     </div>
-
-                    <div class="card mb-4">
-                        <div class="card-header">
-                            <h5 class="mb-0">我的日记</h5>
-                        </div>
-                        <div class="card-body">
-                            {% if user_diaries %}
-                                <div class="row">
-                                    {% for diary in user_diaries %}
-                                        <div class="col-md-6 mb-4">
-                                            <div class="card">
-                                                <div class="card-body">
-                                                    <div class="d-flex justify-content-between align-items-center mb-2">
-                                                        <h5 class="card-title">{{ diary.title }}</h5>
-                                                        <small class="text-muted">{{ diary.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
-                                                    </div>
-                                                    <p class="card-text">{{ diary.content }}</p>
-                                                    {% if diary.picture %}
-                                                        <img src="{{ url_for('static', filename='uploads/' + (diary.picture.replace('\\', '/').split('/')[-1])) }}"
-                                                             alt="日记图片" 
-                                                             class="img-fluid rounded"
-                                                             style="max-height: 300px; object-fit: cover;"
-                                                             onerror="this.onerror=null; this.src='{{ url_for('static', filename='images/default.jpg') }}';">
-                                                    {% endif %}
-                                                </div>
-                                            </div>
-                                        </div>
-                                    {% endfor %}
-                                </div>
-                            {% else %}
-                                <p class="text-muted">暂无日记</p>
-                            {% endif %}
-                        </div>
-                    </div>
-
-                    <div class="card mb-4">
-                        <div class="card-header">
-                            <h5 class="mb-0">浏览记录</h5>
+                    <div class="card mb-4 shadow-sm rounded-4" style="height: 340px; overflow-y: auto;">
+                        <div class="card-header bg-light border-0">
+                            <h5 class="mb-0 fw-semibold">浏览记录</h5>
                         </div>
                         <div class="card-body">
                             {% if browse_history %}
@@ -110,9 +103,44 @@
                             {% endif %}
                         </div>
                     </div>
-
-                    <div class="text-center">
-                        <a href="{{ url_for('logout') }}" class="btn btn-danger">退出账号</a>
+                    <div class="text-center mt-3">
+                        <a href="{{ url_for('logout') }}" class="btn btn-danger w-100 rounded-pill">退出账号</a>
+                    </div>
+                </div>
+                <!-- 右侧：我的日记 -->
+                <div class="col-md-8">
+                    <div class="card mb-4 shadow-sm rounded-4">
+                        <div class="card-header bg-light border-0">
+                            <h5 class="mb-0 fw-semibold">我的日记</h5>
+                        </div>
+                        <div class="card-body">
+                            {% if user_diaries %}
+                                <div class="row row-cols-1 row-cols-md-2 g-3">
+                                    {% for diary in user_diaries %}
+                                        <div class="col">
+                                            <div class="card h-100 border-0 shadow-sm diary-card">
+                                                <div class="card-body">
+                                                    <div class="d-flex justify-content-between align-items-center mb-2">
+                                                        <h5 class="card-title">{{ diary.title }}</h5>
+                                                        <small class="text-muted">{{ diary.created_at.strftime('%Y-%m-%d %H:%M') }}</small>
+                                                    </div>
+                                                    <p class="card-text">{{ diary.content }}</p>
+                                                    {% if diary.picture %}
+                                                        <img src="{{ url_for('static', filename='uploads/' + (diary.picture.replace('\\', '/').split('/')[-1])) }}"
+                                                             alt="日记图片" 
+                                                             class="img-fluid rounded"
+                                                             style="max-height: 200px; object-fit: cover;"
+                                                             onerror='this.onerror=null; this.src="{{ url_for("static", filename="images/default.jpg") }}";'>
+                                                    {% endif %}
+                                                </div>
+                                            </div>
+                                        </div>
+                                    {% endfor %}
+                                </div>
+                            {% else %}
+                                <p class="text-muted">暂无日记</p>
+                            {% endif %}
+                        </div>
                     </div>
                 </div>
             </div>
@@ -120,6 +148,16 @@
     </div>
 
     <script src="{{ url_for('static', filename='js/bootstrap.bundle.min.js') }}"></script>
+    <script>
+        // 让浏览记录高度与我的日记卡片底部对齐
+        window.addEventListener('DOMContentLoaded', function() {
+            var diaryCard = document.querySelector('.col-md-4 .card.mb-4');
+            var browseCard = document.getElementById('browse-history-card');
+            if (diaryCard && browseCard) {
+                browseCard.style.height = diaryCard.offsetTop + diaryCard.offsetHeight - browseCard.offsetTop + 'px';
+            }
+        });
+    </script>
 </body>
 
 </html>

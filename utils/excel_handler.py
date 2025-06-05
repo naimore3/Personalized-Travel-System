@@ -31,8 +31,9 @@ class ExcelHandler:
                 df_places['View_Count'] = pd.to_numeric(df_places['View_Count'], errors='coerce').fillna(0).astype(int)
             df_places.to_excel(self.places_file, index=False)
         except FileNotFoundError:
-            df = pd.DataFrame(columns=['ID', 'Place_Name', 'Place_Category', 'Country', 'City', 'Tags', 'Description', 'Rating', 'View_Count'])
+            df = pd.DataFrame(columns=['ID', 'Place_Name', 'Place_Category', 'Country', 'City', 'Tags', 'Description', 'Rating', 'View_Count', 'Picture'])
             df['View_Count'] = 0 #确保新创建的文件也有初始化的View_Count
+            df['Picture'] = ''  # 确保新创建的文件也有初始化的Picture
             df.to_excel(self.places_file, index=False)
         except Exception as e:
             print(f"Error initializing places file {self.places_file}: {e}")

@@ -104,7 +104,7 @@
                         {% for place in places %}
                         <div class="col">
                             <div class="card shadow-sm h-100">
-                                <img src="{{ url_for('static', filename=place.get('Picture', 'images/default.jpg')) }}" 
+                                <img src="{{ url_for('static', filename='images/'+place.Picture) }}" 
                                      class="bd-placeholder-img card-img-top" 
                                      alt="{{ place['Place_Name'] }}" 
                                      width="100%" 
