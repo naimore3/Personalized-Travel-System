@@ -1,6 +1,0 @@
-Flask==2.0.1
-networkx==3.1
-pandas==2.0.0
-openpyxl==3.1.2
-requests==2.31.0
-# 其他已有的依赖项... 
